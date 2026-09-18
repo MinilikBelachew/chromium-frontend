@@ -13,16 +13,18 @@ import {
   Wallet,
 } from "lucide-react";
 import {
-  addWalletEntry,
   clearUserSession,
-  getUserSession,
-  getWalletLedger,
-  walletBalance,
   type UserSession,
   type WalletEntry,
 } from "@/lib/user-session";
 import BrandLogo from "@/components/common/BrandLogo";
 import ThemeToggle from "@/components/common/ThemeToggle";
+import { useGetOnboardingMeQuery } from "@/context/services/authApi";
+import { clearAuthTokens, hasAuthToken } from "@/lib/auth-token";
+import {
+  profileToUserSession,
+  profileToWalletLedger,
+} from "@/lib/profile-mappers";
 
 type NavId = "overview" | "wallet" | "watch" | "activity";
 
@@ -45,22 +47,48 @@ export default function UserDashboard() {
   const router = useRouter();
   const [session, setSession] = useState<UserSession | null>(null);
   const [ledger, setLedger] = useState<WalletEntry[]>([]);
+  const [walletBalanceValue, setWalletBalanceValue] = useState(0);
+  const [ready, setReady] = useState(false);
   const [nav, setNav] = useState<NavId>("overview");
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    const current = getUserSession();
-    if (!current) {
-      router.replace("/register");
+    if (!hasAuthToken()) {
+      router.replace("/login");
       return;
     }
-    setSession(current);
-    setLedger(getWalletLedger());
+    setReady(true);
   }, [router]);
 
-  const balance = useMemo(() => walletBalance(ledger), [ledger]);
+  const { data, isError, isLoading } = useGetOnboardingMeQuery(undefined, {
+    skip: !ready,
+  });
 
-  if (!session) {
+  useEffect(() => {
+    if (!data) return;
+    const mapped = profileToUserSession(data);
+    if (!mapped) {
+      router.replace("/login");
+      return;
+    }
+    setSession(mapped);
+    const entries = profileToWalletLedger(data);
+    setLedger(entries);
+    setWalletBalanceValue(
+      data.wallet ? Number(data.wallet.balance) : entries.reduce((s, e) => s + e.amount, 0),
+    );
+  }, [data, router]);
+
+  useEffect(() => {
+    if (isError) {
+      clearAuthTokens();
+      router.replace("/login");
+    }
+  }, [isError, router]);
+
+  const balance = useMemo(() => walletBalanceValue, [walletBalanceValue]);
+
+  if (!session || !ready || isLoading) {
     return (
       <main className="grid min-h-svh place-items-center bg-card font-sans text-[15px] text-muted-foreground">
         Loading your wallet…
@@ -76,12 +104,22 @@ export default function UserDashboard() {
     .toUpperCase();
 
   function signOut() {
+    clearAuthTokens();
     clearUserSession();
     router.push("/");
   }
 
   function topUp() {
-    setLedger(addWalletEntry({ label: "Manual top-up", amount: 10, type: "topup" }));
+    // Demo local top-up until a wallet top-up API exists
+    const next: WalletEntry = {
+      id: `led_${Date.now()}`,
+      label: "Manual top-up",
+      amount: 10,
+      type: "topup",
+      date: new Date().toISOString().slice(0, 10),
+    };
+    setLedger((prev) => [next, ...prev]);
+    setWalletBalanceValue((prev) => prev + 10);
   }
 
   return (

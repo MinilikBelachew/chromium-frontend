@@ -10,7 +10,7 @@ const creatorPerks = [
 
 const viewerPerks = [
   "Wallet opens at signup",
-  "ETB 25 welcome credit",
+  "Starts at ETB 0",
   "Only authorized sessions count",
 ];
 

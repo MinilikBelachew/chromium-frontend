@@ -5,7 +5,6 @@ import { useRouter } from "@/i18n/navigation";
 import {
   ArrowUpRight,
   Bell,
-  CalendarDays,
   CheckCircle2,
   CircleHelp,
   Clapperboard,
@@ -18,13 +17,20 @@ import {
   ShieldCheck,
   Wallet,
 } from "lucide-react";
-import {
-  clearCreatorSession,
-  getCreatorSession,
-  type CreatorSession,
-} from "@/lib/creator-session";
+import { type CreatorSession } from "@/lib/creator-session";
 import BrandLogo from "@/components/common/BrandLogo";
 import ThemeToggle from "@/components/common/ThemeToggle";
+import { useGetOnboardingMeQuery } from "@/context/services/authApi";
+import {
+  useGetCreatorAnalyticsSessionsQuery,
+  useGetCreatorAnalyticsSummaryQuery,
+  type AnalyticsPeriod,
+  type AnalyticsSessionRow,
+} from "@/context/services/analyticsApi";
+import { clearAuthTokens, hasAuthToken } from "@/lib/auth-token";
+import { isCreatorRole } from "@/lib/auth-routing";
+import { profileToCreatorSession } from "@/lib/profile-mappers";
+import { clearCreatorSession } from "@/lib/creator-session";
 
 type Period = "today" | "week" | "month" | "reports";
 type NavId = "overview" | "earnings" | "sessions" | "settlements" | "channel" | "settings";
@@ -39,13 +45,6 @@ const mockLedger = [
   { id: "led_4", label: "August settlement payout", amount: -65.0, type: "payout", date: "Sep 1" },
 ];
 
-const recentSessions = [
-  { id: "s1", title: "How I build in public", meta: "ENGAGEMENT_CONFIRMED · 12m", accent: "#fc5f2b", eligible: true },
-  { id: "s2", title: "Studio setup tour", meta: "VIEW_COMPLETED · 8m", accent: "#3B82F6", eligible: true },
-  { id: "s3", title: "Q&A live clip", meta: "SESSION_ACTIVE · 3m", accent: "#A1A1AA", eligible: false },
-  { id: "s4", title: "Channel trailer refresh", meta: "VIEW_COMPLETED · 6m", accent: "#10B981", eligible: true },
-];
-
 const settlements = [
   { label: "Pending review", count: 2, amount: "$18.40", bar: "#A78BFA", width: "70%" },
   { label: "Not paid", count: 1, amount: "$12.00", bar: "#F87171", width: "45%" },
@@ -53,6 +52,36 @@ const settlements = [
   { label: "Fully paid", count: 3, amount: "$65.00", bar: "#34D399", width: "90%" },
   { label: "Draft", count: 1, amount: "$8.25", bar: "#FBBF24", width: "35%" },
 ];
+
+function toAnalyticsPeriod(period: Period): AnalyticsPeriod {
+  if (period === "today" || period === "week") return period;
+  return "month";
+}
+
+function formatWatch(ms: number): string {
+  const sec = Math.round(ms / 1000);
+  if (sec < 60) return `${sec}s`;
+  const min = Math.floor(sec / 60);
+  const rem = sec % 60;
+  return rem ? `${min}m ${rem}s` : `${min}m`;
+}
+
+function sessionAccent(status: string): string {
+  if (status === "COMPLETED") return "#10B981";
+  if (status === "ACTIVE") return "#3B82F6";
+  if (status === "ABANDONED") return "#A1A1AA";
+  return "#fc5f2b";
+}
+
+function sessionMeta(row: AnalyticsSessionRow): string {
+  const parts = [row.status.replace(/_/g, " ")];
+  if (row.watchMs > 0) parts.push(formatWatch(row.watchMs));
+  const ads = row.adImpressionCount ?? (row.hadAdImpression ? 1 : 0);
+  if (ads > 0) parts.push(`${ads} ad${ads === 1 ? "" : "s"}`);
+  if (row.adSkipCount > 0) parts.push(`${row.adSkipCount} skip${row.adSkipCount === 1 ? "" : "s"}`);
+  if (row.endedReason === "NAVIGATE_AWAY") parts.push("navigated away");
+  return parts.join(" · ");
+}
 
 function NavIcon({ children }: { children: React.ReactNode }) {
   return (
@@ -74,26 +103,43 @@ const navItems: { id: NavId; icon: React.ReactNode; label: string }[] = [
 export default function CreatorDashboard() {
   const router = useRouter();
   const [session, setSession] = useState<CreatorSession | null>(null);
+  const [ready, setReady] = useState(false);
   const [period, setPeriod] = useState<Period>("month");
   const [nav, setNav] = useState<NavId>("overview");
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    const current = getCreatorSession();
-    if (!current) {
-      router.replace("/sign-up");
+    if (!hasAuthToken()) {
+      router.replace("/sign-in");
       return;
     }
-    if (current.plan !== "pro") {
-      router.replace("/subscribe");
-      return;
-    }
-    setSession(current);
+    setReady(true);
   }, [router]);
+
+  const { data, isError, isLoading } = useGetOnboardingMeQuery(undefined, {
+    skip: !ready,
+  });
+
+  useEffect(() => {
+    if (!data) return;
+    if (!isCreatorRole(data.user.role) || !data.creator) {
+      router.replace("/app");
+      return;
+    }
+    const mapped = profileToCreatorSession(data);
+    if (mapped) setSession(mapped);
+  }, [data, router]);
+
+  useEffect(() => {
+    if (isError) {
+      clearAuthTokens();
+      router.replace("/sign-in");
+    }
+  }, [isError, router]);
 
   const balance = useMemo(() => mockLedger.reduce((sum, row) => sum + row.amount, 0), []);
 
-  if (!session) {
+  if (!session || !ready || isLoading) {
     return (
       <main className="grid min-h-[100svh] place-items-center bg-card font-sans text-[15px] text-muted-foreground">
         Loading dashboard…
@@ -102,6 +148,7 @@ export default function CreatorDashboard() {
   }
 
   function signOut() {
+    clearAuthTokens();
     clearCreatorSession();
     router.push("/");
   }
@@ -255,7 +302,7 @@ export default function CreatorDashboard() {
             <OverviewGrid session={session} balance={balance} period={period} />
           ) : null}
           {nav === "earnings" ? <EarningsPanel balance={balance} /> : null}
-          {nav === "sessions" ? <SessionsPanel /> : null}
+          {nav === "sessions" ? <SessionsPanel period={period} /> : null}
           {nav === "settlements" ? <SettlementsPanel /> : null}
           {nav === "channel" || nav === "settings" ? (
             <ChannelPanel session={session} onSignOut={signOut} />
@@ -275,6 +322,8 @@ function OverviewGrid({
   balance: number;
   period: Period;
 }) {
+  const analyticsPeriod = toAnalyticsPeriod(period);
+  const { data, isLoading } = useGetCreatorAnalyticsSummaryQuery(analyticsPeriod);
   const periodLabel =
     period === "today"
       ? "Today"
@@ -282,7 +331,19 @@ function OverviewGrid({
         ? "This week"
         : period === "month"
           ? "This month"
-          : "Reports";
+          : "Last 30 days";
+
+  const views = data?.views ?? 0;
+  const completed = data?.completedViews ?? 0;
+  const ads = data?.adImpressions ?? 0;
+  const skips = data?.adSkips ?? 0;
+  const exits = data?.navigateAways ?? 0;
+  const avgWatch = data?.avgWatchMs ?? 0;
+  const recent = data?.recentSessions ?? [];
+
+  const confirmedPct = views > 0 ? Math.round((completed / views) * 100) : 0;
+  const exitPct = views > 0 ? Math.round((exits / views) * 100) : 0;
+  const inProgressPct = Math.max(0, 100 - confirmedPct - exitPct);
 
   return (
     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-12">
@@ -290,37 +351,72 @@ function OverviewGrid({
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-[15px] font-semibold tracking-[-0.02em]">Recent sessions</h2>
           <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
-            12
+            {recent.length}
           </span>
         </div>
         <div className="flex flex-col gap-3">
-          {recentSessions.map((item) => (
-            <article
-              key={item.id}
-              className={`rounded-xl bg-card p-3.5 ${LINE}`}
-              style={{ borderLeft: `3px solid ${item.accent}` }}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-[13.5px] font-medium tracking-[-0.01em]">
-                    {item.title}
-                  </p>
-                  <p className="mt-1 text-[11.5px] text-muted-foreground">{item.meta}</p>
+          {isLoading ? (
+            <p className="text-[13px] text-muted-foreground">Loading sessions…</p>
+          ) : null}
+          {!isLoading && recent.length === 0 ? (
+            <p className="text-[13px] text-muted-foreground">
+              No Fanaye browser views yet for this period.
+            </p>
+          ) : null}
+          {recent.map((item) => {
+            const eligible =
+              item.status === "COMPLETED" || item.watchMs >= 30_000;
+            return (
+              <article
+                key={item.id}
+                className={`rounded-xl bg-card p-3.5 ${LINE}`}
+                style={{ borderLeft: `3px solid ${sessionAccent(item.status)}` }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-[13.5px] font-medium tracking-[-0.01em]">
+                      {item.title}
+                    </p>
+                    <p className="mt-1 text-[11.5px] text-muted-foreground">
+                      {sessionMeta(item)}
+                    </p>
+                  </div>
+                  {eligible ? (
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-[#10B981]" strokeWidth={2} />
+                  ) : (
+                    <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
+                      Hold
+                    </span>
+                  )}
                 </div>
-                {item.eligible ? (
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-[#10B981]" strokeWidth={2} />
-                ) : (
-                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
-                    Hold
-                  </span>
-                )}
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       </section>
 
       <div className="flex flex-col gap-5 md:col-span-2 lg:col-span-6">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <StatMini label="Views" value={String(views)} hint={`Fanaye browser · ${periodLabel}`} />
+          <StatMini
+            label="Observed ads"
+            value={String(ads)}
+            hint="Detected in Fanaye browser"
+          />
+          <StatMini label="Ad skips" value={String(skips)} hint="Skip button clicks observed" />
+          <StatMini label="Navigate away" value={String(exits)} hint="Left before completion" />
+          <StatMini
+            label="Avg watch"
+            value={formatWatch(avgWatch)}
+            hint="Across started sessions"
+          />
+          <StatMini
+            label="Completed"
+            value={String(completed)}
+            hint="≥30s or completed end"
+          />
+        </div>
+
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <section className={CARD}>
             <h2 className="text-[15px] font-semibold tracking-[-0.02em]">Engagement mix</h2>
@@ -329,15 +425,15 @@ function OverviewGrid({
               <div
                 className="relative size-[112px] shrink-0 rounded-full"
                 style={{
-                  background: "conic-gradient(#fc5f2b 0 28%, #3B82F6 28% 64%, #E4E4E7 64% 100%)",
+                  background: `conic-gradient(#fc5f2b 0 ${confirmedPct}%, #3B82F6 ${confirmedPct}% ${confirmedPct + inProgressPct}%, #E4E4E7 ${confirmedPct + inProgressPct}% 100%)`,
                 }}
               >
                 <div className="absolute inset-[16px] rounded-full bg-card" />
               </div>
               <ul className="min-w-0 flex-1 space-y-2.5 text-[12.5px]">
-                <LegendDot color="#fc5f2b" label="Confirmed" value="28%" />
-                <LegendDot color="#3B82F6" label="Completed" value="36%" />
-                <LegendDot color="#E4E4E7" label="In progress" value="36%" />
+                <LegendDot color="#fc5f2b" label="Completed" value={`${confirmedPct}%`} />
+                <LegendDot color="#3B82F6" label="Other" value={`${inProgressPct}%`} />
+                <LegendDot color="#E4E4E7" label="Navigated away" value={`${exitPct}%`} />
               </ul>
             </div>
           </section>
@@ -345,45 +441,23 @@ function OverviewGrid({
           <section className={CARD}>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-[15px] font-semibold tracking-[-0.02em]">Creator vs fee</h2>
-                <p className="mt-1 text-[12px] text-muted-foreground">Ledger split</p>
-              </div>
-              <div className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5">
-                  <i className="size-2 rounded-full bg-[#3B82F6]" /> Creator
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <i className="size-2 rounded-full bg-sunrise-coral" /> Fee
-                </span>
+                <h2 className="text-[15px] font-semibold tracking-[-0.02em]">Earnings</h2>
+                <p className="mt-1 text-[12px] text-muted-foreground">Coming soon · ledger mock</p>
               </div>
             </div>
-            <svg viewBox="0 0 320 120" className="mt-4 h-[120px] w-full" aria-hidden>
-              <path
-                d="M0 92 C40 84, 60 58, 100 62 S160 100, 200 74 S280 32, 320 44"
-                fill="none"
-                stroke="#3B82F6"
-                strokeWidth="2.5"
-              />
-              <path
-                d="M0 104 C40 100, 60 92, 100 94 S160 108, 200 102 S280 84, 320 88"
-                fill="none"
-                stroke="#fc5f2b"
-                strokeWidth="2.5"
-              />
-            </svg>
-            <div className="mt-1 flex justify-between text-[11px] text-ash-gray">
-              <span>Jan</span>
-              <span>Mar</span>
-              <span>May</span>
-              <span>Jul</span>
-            </div>
+            <p className="mt-6 text-[26px] font-semibold tracking-[-0.03em]">
+              ${balance.toFixed(2)}
+            </p>
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              Illustrative balance — not tied to analytics events yet
+            </p>
           </section>
         </div>
 
         <section className={CARD}>
           <h2 className="text-[15px] font-semibold tracking-[-0.02em]">Settlement overview</h2>
           <p className="mt-1 text-[12px] text-muted-foreground">
-            Payout status derived from the immutable ledger
+            Payouts stay mocked until the revenue slice ships
           </p>
           <div className="mt-5 space-y-4">
             {settlements.map((item) => (
@@ -403,31 +477,20 @@ function OverviewGrid({
             ))}
           </div>
         </section>
-
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-          <StatMini label="Ledger balance" value={`$${balance.toFixed(2)}`} hint="SUM(ledger)" />
-          <StatMini label="Creator share" value="$65.20" hint="After platform fee" />
-          <StatMini label="Eligible sessions" value="128" hint="Server-confirmed" />
-        </div>
       </div>
 
       <div className="flex flex-col gap-5 md:col-span-2 lg:col-span-3">
         <section className={CARD}>
-          <h2 className="text-[15px] font-semibold tracking-[-0.02em]">Upcoming</h2>
-          <div className="mt-4 flex flex-col gap-4">
-            <ScheduleRow time="Sep 30" title="Monthly settlement" meta="Auto aggregate" />
-            <ScheduleRow time="Oct 2" title="Channel review" meta="Verification queue" />
-            <ScheduleRow time="Oct 5" title="Payout window" meta="Payment provider" />
-          </div>
-        </section>
-
-        <section className={CARD}>
-          <h2 className="text-[15px] font-semibold tracking-[-0.02em]">Integrity alerts</h2>
-          <div className="mt-4 flex flex-col gap-3">
-            <AlertRow name="Rate limit" detail="2 bursts blocked today" />
-            <AlertRow name="Duplicate session" detail="Flagged · not eligible" />
-            <AlertRow name="Device check" detail="1 account under watch" />
-          </div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Data source
+          </p>
+          <p className="mt-2 text-[14px] font-semibold tracking-[-0.02em]">
+            Observed in Fanaye browser
+          </p>
+          <p className="mt-2 text-[12.5px] leading-[1.5] text-muted-foreground">
+            Views, ads, and skips are first-party signals from verified-channel watches — not YouTube
+            Studio Ads Manager.
+          </p>
         </section>
 
         <section className={CARD}>
@@ -438,7 +501,7 @@ function OverviewGrid({
             {session.channelName}
           </p>
           <p className="mt-1 text-[12.5px] capitalize text-muted-foreground">
-            {session.verificationStatus} · Pro plan
+            {session.verificationStatus} · {session.plan === "pro" ? "Pro" : "Starter"} plan
           </p>
           <a
             href={session.channelUrl}
@@ -492,26 +555,51 @@ function EarningsPanel({ balance }: { balance: number }) {
   );
 }
 
-function SessionsPanel() {
+function SessionsPanel({ period }: { period: Period }) {
+  const analyticsPeriod = toAnalyticsPeriod(period);
+  const { data, isLoading } = useGetCreatorAnalyticsSessionsQuery(analyticsPeriod);
+  const items = data?.items ?? [];
+
+  if (isLoading) {
+    return (
+      <p className="text-[14px] text-muted-foreground">Loading sessions…</p>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <section className={CARD}>
+        <h2 className="text-[15px] font-semibold tracking-[-0.02em]">Sessions</h2>
+        <p className="mt-2 text-[13.5px] text-muted-foreground">
+          No viewing sessions from the Fanaye browser in this period yet.
+        </p>
+      </section>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-      {recentSessions.map((item) => (
-        <article
-          key={item.id}
-          className={`rounded-2xl bg-card p-5 ${LINE}`}
-          style={{ borderTop: `3px solid ${item.accent}` }}
-        >
-          <p className="text-[14px] font-semibold tracking-[-0.01em]">{item.title}</p>
-          <p className="mt-2 text-[12px] text-muted-foreground">{item.meta}</p>
-          <p
-            className={`mt-4 text-[11px] font-semibold uppercase tracking-[0.06em] ${
-              item.eligible ? "text-[#10B981]" : "text-muted-foreground"
-            }`}
+      {items.map((item) => {
+            const eligible =
+              item.eligible ?? (item.status === "COMPLETED" || item.watchMs >= 30_000);
+        return (
+          <article
+            key={item.id}
+            className={`rounded-2xl bg-card p-5 ${LINE}`}
+            style={{ borderTop: `3px solid ${sessionAccent(item.status)}` }}
           >
-            {item.eligible ? "Eligible" : "Not eligible"}
-          </p>
-        </article>
-      ))}
+            <p className="text-[14px] font-semibold tracking-[-0.01em]">{item.title}</p>
+            <p className="mt-2 text-[12px] text-muted-foreground">{sessionMeta(item)}</p>
+            <p
+              className={`mt-4 text-[11px] font-semibold uppercase tracking-[0.06em] ${
+                eligible ? "text-[#10B981]" : "text-muted-foreground"
+              }`}
+            >
+              {eligible ? "Eligible" : "Not eligible"}
+            </p>
+          </article>
+        );
+      })}
     </div>
   );
 }
@@ -605,37 +693,5 @@ function LegendDot({ color, label, value }: { color: string; label: string; valu
       <span className="text-muted-foreground">{label}</span>
       <span className="ml-auto font-medium">{value}</span>
     </li>
-  );
-}
-
-function ScheduleRow({ time, title, meta }: { time: string; title: string; meta: string }) {
-  return (
-    <div className="flex items-start gap-3">
-      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground ${LINE}`}>
-        <CalendarDays className="h-4 w-4" strokeWidth={1.75} />
-      </span>
-      <div className="min-w-0">
-        <p className="text-[11.5px] text-muted-foreground">{time}</p>
-        <p className="truncate text-[13.5px] font-medium tracking-[-0.01em]">{title}</p>
-        <p className="text-[11.5px] text-muted-foreground">{meta}</p>
-      </div>
-    </div>
-  );
-}
-
-function AlertRow({ name, detail }: { name: string; detail: string }) {
-  return (
-    <div className={`flex items-center gap-3 rounded-xl bg-card p-3 ${LINE}`}>
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#FFF1E9] text-sunrise-coral">
-        <ShieldCheck className="h-4 w-4" strokeWidth={1.75} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-medium">{name}</p>
-        <p className="truncate text-[11.5px] text-muted-foreground">{detail}</p>
-      </div>
-      <button type="button" className="shrink-0 text-[12px] font-medium text-sunrise-coral hover:underline">
-        Check
-      </button>
-    </div>
   );
 }

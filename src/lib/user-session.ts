@@ -91,16 +91,8 @@ export function createUserSession(input: {
     createdAt,
   };
 
-  const welcome: WalletEntry = {
-    id: `led_${Date.now()}`,
-    label: "Welcome credit",
-    amount: 25,
-    type: "credit",
-    date: createdAt.slice(0, 10),
-  };
-
   saveUserSession(session);
-  saveWalletLedger([welcome]);
+  saveWalletLedger([]);
   return session;
 }
 

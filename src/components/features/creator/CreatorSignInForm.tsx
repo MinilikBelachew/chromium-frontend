@@ -6,34 +6,24 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import LoginShell from "@/components/features/auth/LoginShell";
-import {
-  useLazyGetOnboardingMeQuery,
-  useLoginMutation,
-} from "@/context/services/authApi";
+import AuthShell from "@/components/features/creator/AuthShell";
+import { useLoginMutation } from "@/context/services/authApi";
 import { parseApiError } from "@/lib/auth-errors";
-import { homePathForRole } from "@/lib/auth-routing";
+import { homePathForRole, isCreatorRole } from "@/lib/auth-routing";
 import { hasAuthToken } from "@/lib/auth-token";
 
-export default function UserLoginForm() {
+export default function CreatorSignInForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [login, { isLoading }] = useLoginMutation();
-  const [fetchMe] = useLazyGetOnboardingMeQuery();
 
   useEffect(() => {
-    if (!hasAuthToken()) return;
-    void fetchMe()
-      .unwrap()
-      .then((profile) => {
-        router.replace(homePathForRole(profile.user.role));
-      })
-      .catch(() => {
-        /* stay on login if token invalid */
-      });
-  }, [fetchMe, router]);
+    if (hasAuthToken()) {
+      router.replace("/dashboard");
+    }
+  }, [router]);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -43,6 +33,12 @@ export default function UserLoginForm() {
         email: email.trim().toLowerCase(),
         password,
       }).unwrap();
+
+      if (!isCreatorRole(result.user.role)) {
+        setError("This account is not a creator. Use viewer sign-in instead.");
+        return;
+      }
+
       router.push(homePathForRole(result.user.role));
     } catch (err) {
       setError(parseApiError(err, "Could not sign in"));
@@ -50,25 +46,17 @@ export default function UserLoginForm() {
   }
 
   return (
-    <LoginShell
-      title="Sign in"
-      subtitle="Sign in with your email and password."
+    <AuthShell
+      title="Creator sign in"
+      subtitle="Sign in with the email and password you used when registering your channel."
       footer={
         <>
-          New here?{" "}
-          <Link
-            href="/register"
-            className="text-carbon-black underline-offset-4 hover:underline"
-          >
-            Create an account
-          </Link>
-          <span className="mx-2 text-[#D4D4D8]">·</span>
-          Creator?{" "}
+          New creator?{" "}
           <Link
             href="/sign-up"
             className="text-carbon-black underline-offset-4 hover:underline"
           >
-            Register a channel
+            Register with your YouTube channel
           </Link>
         </>
       }
@@ -82,23 +70,20 @@ export default function UserLoginForm() {
             id="email"
             type="email"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(e) => setEmail(e.target.value)}
             className="h-11 rounded-[15px] border-mist-gray px-4 text-[15px] shadow-none"
             required
           />
         </div>
         <div className="space-y-2">
-          <Label
-            htmlFor="password"
-            className="text-onboarding-label text-carbon-black"
-          >
+          <Label htmlFor="password" className="text-onboarding-label text-carbon-black">
             Password
           </Label>
           <Input
             id="password"
             type="password"
             value={password}
-            onChange={(event) => setPassword(event.target.value)}
+            onChange={(e) => setPassword(e.target.value)}
             className="h-11 rounded-[15px] border-mist-gray px-4 text-[15px] shadow-none"
             required
           />
@@ -110,9 +95,9 @@ export default function UserLoginForm() {
         ) : null}
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading ? "Signing in…" : "Continue"}
-          <ArrowRight className="h-4 w-4" />
+          <ArrowRight className="size-4" />
         </Button>
       </form>
-    </LoginShell>
+    </AuthShell>
   );
 }

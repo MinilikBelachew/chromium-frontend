@@ -66,7 +66,7 @@ const Hero: React.FC = () => {
         </div>
 
         <div className="relative mt-16">
-          <Sticker className="-left-2 top-4 hidden rotate-[-8deg] sm:block" tone="coral" label="ETB 25 welcome" />
+          <Sticker className="-left-2 top-4 hidden rotate-[-8deg] sm:block" tone="coral" label="Wallet from 0" />
           <Sticker className="right-0 top-0 hidden rotate-[7deg] md:block" tone="blue" label="Ledger-first" />
           <Sticker className="bottom-6 left-1/2 hidden -translate-x-1/2 rotate-[3deg] lg:block" tone="mint" label="Server-confirmed" />
 
