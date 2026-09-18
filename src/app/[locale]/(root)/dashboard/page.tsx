@@ -1,11 +1,6 @@
 import React from "react";
+import CreatorDashboard from "@/components/features/creator/CreatorDashboard";
 
-const DashboardPage: React.FC = () => {
-    return (
-        <main>
-            <h1>Dashboard</h1>
-        </main>
-    );
-};
-
-export default DashboardPage;
+export default function DashboardPage() {
+  return <CreatorDashboard />;
+}

@@ -1,0 +1,62 @@
+@theme {
+  /* Colors */
+  --color-sunrise-coral: #fc5f2b;
+  --color-coral-glow: #ff8b64;
+  --color-carbon-black: #18181b;
+  --color-pure-black: #000000;
+  --color-zinc-gray: #71717a;
+  --color-ash-gray: #a1a1aa;
+  --color-mist-gray: #e4e4e7;
+  --color-fog-gray: #f4f4f5;
+  --color-paper-white: #ffffff;
+
+  /* Typography — Inter */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Typography — Scale */
+  --text-caption: 11px;
+  --leading-caption: 1.5;
+  --tracking-caption: -0.005em;
+  --text-body: 15px;
+  --leading-body: 1.5;
+  --tracking-body: -0.005em;
+  --text-body-lg: 17px;
+  --leading-body-lg: 1.4;
+  --tracking-body-lg: -0.009em;
+  --text-subheading: 19px;
+  --leading-subheading: 1.4;
+  --tracking-subheading: -0.009em;
+  --text-heading-sm: 22px;
+  --leading-heading-sm: 1.25;
+  --tracking-heading-sm: -0.012em;
+  --text-heading: 30px;
+  --leading-heading: 1.2;
+  --tracking-heading: -0.013em;
+  --text-heading-lg: 45px;
+  --leading-heading-lg: 1.13;
+  --tracking-heading-lg: -0.015em;
+  --text-display: 66px;
+  --leading-display: 1;
+  --tracking-display: -0.025em;
+
+  /* Spacing */
+  --spacing-4: 4px;
+  --spacing-8: 8px;
+  --spacing-16: 16px;
+  --spacing-24: 24px;
+  --spacing-28: 28px;
+  --spacing-60: 60px;
+
+  /* Border Radius */
+  --radius-md: 5px;
+  --radius-lg: 7.5px;
+  --radius-xl: 11px;
+  --radius-xl-2: 15px;
+  --radius-2xl: 22px;
+  --radius-3xl: 30px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-subtle: 0px 2px 2px 0px rgba(0, 0, 0, 0.05);
+}

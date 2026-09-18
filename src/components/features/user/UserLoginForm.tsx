@@ -7,51 +7,48 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import AuthShell from "@/components/features/creator/AuthShell";
-import { getCreatorSession } from "@/lib/creator-session";
+import { getUserSession } from "@/lib/user-session";
 
-export default function SignInPage() {
+export default function UserLoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const session = getCreatorSession();
-    if (session?.plan === "pro") {
-      router.replace("/dashboard");
-    } else if (session) {
-      router.replace("/subscribe");
+    if (getUserSession()) {
+      router.replace("/app");
     }
   }, [router]);
 
   function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
-    const session = getCreatorSession();
+    const session = getUserSession();
     if (!session) {
-      setError("No creator account on this device yet. Register first.");
+      setError("No viewer account on this device yet. Register first.");
       return;
     }
     if (session.email !== email.trim().toLowerCase()) {
-      setError("Email doesn’t match the creator registered on this browser.");
+      setError("Email doesn’t match the account registered on this browser.");
       return;
     }
     if (!password) {
       setError("Enter your password");
       return;
     }
-    router.push(session.plan === "pro" ? "/dashboard" : "/subscribe");
+    router.push("/app");
   }
 
   return (
     <AuthShell
-      title="Creator sign in"
-      subtitle="Frontend-only demo — sign in with the email you used at registration on this browser."
+      title="Sign in"
+      subtitle="Frontend-only demo — use the email you registered with on this browser."
       footer={
         <>
-          New creator?{" "}
-          <Link href="/sign-up" className="text-carbon-black underline-offset-4 hover:underline">
-            Register with your YouTube channel
+          New here?{" "}
+          <Link href="/register" className="text-carbon-black underline-offset-4 hover:underline">
+            Create an account
           </Link>
         </>
       }
@@ -65,7 +62,7 @@ export default function SignInPage() {
             id="email"
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(event) => setEmail(event.target.value)}
             className="h-11 rounded-[15px] border-mist-gray px-4 text-[15px] shadow-none"
             required
           />
@@ -78,7 +75,7 @@ export default function SignInPage() {
             id="password"
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(event) => setPassword(event.target.value)}
             className="h-11 rounded-[15px] border-mist-gray px-4 text-[15px] shadow-none"
             required
           />
@@ -90,7 +87,7 @@ export default function SignInPage() {
         ) : null}
         <Button type="submit" className="w-full">
           Continue
-          <ArrowRight className="size-4" />
+          <ArrowRight className="h-4 w-4" />
         </Button>
       </form>
     </AuthShell>
