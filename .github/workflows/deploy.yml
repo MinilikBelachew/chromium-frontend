@@ -19,7 +19,7 @@ on:
       api_url:
         description: 'NEXT_PUBLIC_API_URL (baked into Next.js client bundle)'
         required: false
-        default: 'http://virwo.learnica.net/backend'
+        default: 'https://virwo.learnica.net/backend/v1'
 
 jobs:
   build-and-push:
@@ -79,7 +79,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            NEXT_PUBLIC_API_URL=${{ github.event.inputs.api_url || 'http://virwo.learnica.net/backend' }}
+            NEXT_PUBLIC_API_URL=${{ github.event.inputs.api_url || 'https://virwo.learnica.net/backend/v1' }}
 
   deploy-to-vps:
     name: Deploy Container on VPS
@@ -138,7 +138,7 @@ jobs:
                 environment:
                   NODE_ENV: ${NODE_ENV:-production}
                   PORT: ${PORT:-3000}
-                  NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://virwo.learnica.net/backend}
+                  NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://virwo.learnica.net/backend/v1}
                 networks:
                   - frontend-network
 

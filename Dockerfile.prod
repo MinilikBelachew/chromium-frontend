@@ -17,7 +17,7 @@ COPY --from=deps /usr/src/app/node_modules ./node_modules
 COPY . .
 
 # Set build arguments for Next.js build (only NEXT_PUBLIC_API_URL is used in codebase)
-ARG NEXT_PUBLIC_API_URL=/backend
+ARG NEXT_PUBLIC_API_URL=/backend/v1
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=4096"

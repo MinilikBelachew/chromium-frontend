@@ -10,7 +10,7 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${PORT:-3000}
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://virwo.learnica.net/backend}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://virwo.learnica.net/backend/v1}
     networks:
       - frontend-network
 
