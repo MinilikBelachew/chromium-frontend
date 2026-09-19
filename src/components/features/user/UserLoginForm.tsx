@@ -88,12 +88,20 @@ export default function UserLoginForm() {
           />
         </div>
         <div className="space-y-2">
-          <Label
-            htmlFor="password"
-            className="text-onboarding-label text-carbon-black"
-          >
-            Password
-          </Label>
+          <div className="flex items-center justify-between gap-3">
+            <Label
+              htmlFor="password"
+              className="text-onboarding-label text-carbon-black"
+            >
+              Password
+            </Label>
+            <Link
+              href="/forgot-password"
+              className="text-[12px] font-medium text-sky-blue underline-offset-4 hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <Input
             id="password"
             type="password"

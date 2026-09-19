@@ -1,41 +1,34 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { useRouter } from "@/i18n/navigation";
+import React, { useEffect, useState } from "react";
+import { useRouter, Link } from "@/i18n/navigation";
 import {
   Bell,
   CircleHelp,
   Clapperboard,
-  Compass,
   Home,
+  KeyRound,
   LogOut,
-  Search,
-  Wallet,
 } from "lucide-react";
-import {
-  clearUserSession,
-  type UserSession,
-  type WalletEntry,
-} from "@/lib/user-session";
+import { clearUserSession, type UserSession } from "@/lib/user-session";
 import BrandLogo from "@/components/common/BrandLogo";
 import ThemeToggle from "@/components/common/ThemeToggle";
-import { useGetOnboardingMeQuery } from "@/context/services/authApi";
-import { clearAuthTokens, hasAuthToken } from "@/lib/auth-token";
 import {
-  profileToUserSession,
-  profileToWalletLedger,
-} from "@/lib/profile-mappers";
+  useGetOnboardingMeQuery,
+  useLogoutMutation,
+} from "@/context/services/authApi";
+import { clearAuthTokens, hasAuthToken } from "@/lib/auth-token";
+import { profileToUserSession } from "@/lib/profile-mappers";
+import {
+  handleFromEmail,
+  notionistsAvatar,
+  userBannerGradient,
+} from "@/lib/dicebear";
 
-type NavId = "overview" | "wallet" | "watch" | "activity";
+type NavId = "overview" | "activity";
 
 const LINE = "border border-border";
 const CARD = `rounded-2xl bg-card ${LINE} p-5`;
-
-const channels = [
-  { id: "c1", name: "Studio Daily", handle: "@studiodaily", status: "Registered" },
-  { id: "c2", name: "Build in Public ET", handle: "@bipet", status: "Registered" },
-  { id: "c3", name: "City Walks", handle: "@citywalks", status: "Open watch" },
-];
 
 const mockActivity = [
   { id: "a1", title: "How I build in public", status: "ENGAGEMENT_CONFIRMED", time: "12m" },
@@ -46,11 +39,10 @@ const mockActivity = [
 export default function UserDashboard() {
   const router = useRouter();
   const [session, setSession] = useState<UserSession | null>(null);
-  const [ledger, setLedger] = useState<WalletEntry[]>([]);
-  const [walletBalanceValue, setWalletBalanceValue] = useState(0);
   const [ready, setReady] = useState(false);
   const [nav, setNav] = useState<NavId>("overview");
-  const [query, setQuery] = useState("");
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const [logout] = useLogoutMutation();
 
   useEffect(() => {
     if (!hasAuthToken()) {
@@ -72,11 +64,7 @@ export default function UserDashboard() {
       return;
     }
     setSession(mapped);
-    const entries = profileToWalletLedger(data);
-    setLedger(entries);
-    setWalletBalanceValue(
-      data.wallet ? Number(data.wallet.balance) : entries.reduce((s, e) => s + e.amount, 0),
-    );
+    setAvatarFailed(false);
   }, [data, router]);
 
   useEffect(() => {
@@ -86,16 +74,18 @@ export default function UserDashboard() {
     }
   }, [isError, router]);
 
-  const balance = useMemo(() => walletBalanceValue, [walletBalanceValue]);
-
   if (!session || !ready || isLoading) {
     return (
       <main className="grid min-h-svh place-items-center bg-card font-sans text-[15px] text-muted-foreground">
-        Loading your wallet…
+        Loading your account…
       </main>
     );
   }
 
+  const avatarSeed = session.email || session.name;
+  const avatarUrl = notionistsAvatar(avatarSeed, 160);
+  const bannerGradient = userBannerGradient(avatarSeed);
+  const handle = handleFromEmail(session.email || session.name);
   const initials = session.name
     .split(" ")
     .map((part) => part[0])
@@ -103,23 +93,14 @@ export default function UserDashboard() {
     .join("")
     .toUpperCase();
 
-  function signOut() {
-    clearAuthTokens();
+  async function signOut() {
+    try {
+      await logout().unwrap();
+    } catch {
+      clearAuthTokens();
+    }
     clearUserSession();
-    router.push("/");
-  }
-
-  function topUp() {
-    // Demo local top-up until a wallet top-up API exists
-    const next: WalletEntry = {
-      id: `led_${Date.now()}`,
-      label: "Manual top-up",
-      amount: 10,
-      type: "topup",
-      date: new Date().toISOString().slice(0, 10),
-    };
-    setLedger((prev) => [next, ...prev]);
-    setWalletBalanceValue((prev) => prev + 10);
+    router.push("/login");
   }
 
   return (
@@ -127,16 +108,18 @@ export default function UserDashboard() {
       <aside className="sticky top-0 hidden h-svh w-[72px] shrink-0 flex-col items-center gap-3 border-r border-border bg-sidebar px-3 py-6 sm:flex">
         <BrandLogo size={40} />
         <div className="flex flex-1 flex-col items-center gap-2">
-          <RailButton active={nav === "overview"} label="Overview" onClick={() => setNav("overview")}>
+          <RailButton
+            active={nav === "overview"}
+            label="Overview"
+            onClick={() => setNav("overview")}
+          >
             <Home className="h-5 w-5" strokeWidth={1.75} />
           </RailButton>
-          <RailButton active={nav === "wallet"} label="Wallet" onClick={() => setNav("wallet")}>
-            <Wallet className="h-5 w-5" strokeWidth={1.75} />
-          </RailButton>
-          <RailButton active={nav === "watch"} label="Watch" onClick={() => setNav("watch")}>
-            <Compass className="h-5 w-5" strokeWidth={1.75} />
-          </RailButton>
-          <RailButton active={nav === "activity"} label="Activity" onClick={() => setNav("activity")}>
+          <RailButton
+            active={nav === "activity"}
+            label="Activity"
+            onClick={() => setNav("activity")}
+          >
             <Clapperboard className="h-5 w-5" strokeWidth={1.75} />
           </RailButton>
         </div>
@@ -154,7 +137,9 @@ export default function UserDashboard() {
         <header className="grid grid-cols-[1fr_auto] items-center gap-6 border-b border-border px-6 py-4 lg:px-8">
           <div className="flex items-center gap-3">
             <BrandLogo size={36} />
-            <p className="hidden text-[12px] text-muted-foreground sm:block">Viewer dashboard</p>
+            <p className="hidden text-[12px] text-muted-foreground sm:block">
+              Viewer dashboard
+            </p>
           </div>
           <div className="flex shrink-0 items-center justify-end gap-3">
             <ThemeToggle />
@@ -173,47 +158,51 @@ export default function UserDashboard() {
               <CircleHelp className="h-5 w-5" strokeWidth={1.75} />
             </button>
             <div className="flex h-10 items-center gap-2.5 rounded-full border border-border py-1 pl-1 pr-4">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FFF1E9] text-[11px] font-bold text-sunrise-coral">
-                {initials}
-              </span>
+              {!avatarFailed ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={notionistsAvatar(avatarSeed, 64)}
+                  alt=""
+                  className="h-8 w-8 rounded-full bg-[#FFF1E9]"
+                  onError={() => setAvatarFailed(true)}
+                />
+              ) : (
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FFF1E9] text-[11px] font-bold text-sunrise-coral">
+                  {initials}
+                </span>
+              )}
               <div className="leading-tight">
-                <p className="max-w-[140px] truncate text-[13px] font-medium">{session.name}</p>
-                <p className="whitespace-nowrap text-[11px] text-muted-foreground">Wallet · Viewer</p>
+                <p className="max-w-[140px] truncate text-[13px] font-medium">
+                  {session.name}
+                </p>
+                <p className="whitespace-nowrap text-[11px] text-muted-foreground">
+                  Viewer
+                </p>
               </div>
             </div>
           </div>
         </header>
 
         <main className="flex-1 px-6 py-6 lg:px-8">
-          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-[13px] text-muted-foreground">Watch registered channels. Your wallet stays on a ledger.</p>
-              <h1 className="mt-1.5 text-[30px] font-semibold leading-[1.15] tracking-[-0.025em]">
-                Hi, {session.name.split(" ")[0]}
-              </h1>
-            </div>
-            <label className="relative w-full max-w-[400px]">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search channels…"
-                className={`h-11 w-full rounded-full bg-card pl-11 pr-4 text-[14px] outline-none ${LINE}`}
-              />
-            </label>
+          <div className="mb-6">
+            <p className="text-[13px] text-muted-foreground">
+              Your account overview and viewing history.
+            </p>
+            <h1 className="mt-1.5 text-[30px] font-semibold leading-[1.15] tracking-[-0.025em]">
+              Hi, {session.name.split(" ")[0]}
+            </h1>
           </div>
 
           {nav === "overview" ? (
             <Overview
               session={session}
-              balance={balance}
-              ledger={ledger}
-              onWatch={() => setNav("watch")}
-              onWallet={() => setNav("wallet")}
+              handle={handle}
+              avatarUrl={avatarUrl}
+              bannerGradient={bannerGradient}
+              initials={initials}
+              onOpenActivity={() => setNav("activity")}
             />
           ) : null}
-          {nav === "wallet" ? <WalletPanel session={session} balance={balance} ledger={ledger} onTopUp={topUp} /> : null}
-          {nav === "watch" ? <WatchPanel query={query} /> : null}
           {nav === "activity" ? <ActivityPanel /> : null}
         </main>
       </div>
@@ -239,7 +228,9 @@ function RailButton({
       aria-label={label}
       onClick={onClick}
       className={`flex h-10 w-10 items-center justify-center rounded-xl transition-colors ${
-        active ? "bg-[#FFF1E9] text-sunrise-coral" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        active
+          ? "bg-[#FFF1E9] text-sunrise-coral"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
       }`}
     >
       {children}
@@ -249,157 +240,141 @@ function RailButton({
 
 function Overview({
   session,
-  balance,
-  ledger,
-  onWatch,
-  onWallet,
+  handle,
+  avatarUrl,
+  bannerGradient,
+  initials,
+  onOpenActivity,
 }: {
   session: UserSession;
-  balance: number;
-  ledger: WalletEntry[];
-  onWatch: () => void;
-  onWallet: () => void;
+  handle: string;
+  avatarUrl: string;
+  bannerGradient: string;
+  initials: string;
+  onOpenActivity: () => void;
 }) {
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const memberSince = new Date(session.createdAt).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-      <section className={`${CARD} lg:col-span-5`}>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Wallet</p>
-        <p className="mt-3 text-[36px] font-semibold tracking-[-0.03em]">ETB {balance.toFixed(2)}</p>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          Ledger balance · {session.walletId}
-        </p>
-        <div className="mt-5 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={onWallet}
-            className="rounded-full bg-sunrise-coral px-5 py-2.5 text-[13px] font-bold text-white"
-          >
-            Open wallet
-          </button>
-          <button
-            type="button"
-            onClick={onWatch}
-            className={`rounded-full px-5 py-2.5 text-[13px] font-medium ${LINE}`}
-          >
-            Find a channel
-          </button>
+      <section className={`${CARD} overflow-hidden p-0 lg:col-span-5`}>
+        <div className="h-28 w-full" style={{ background: bannerGradient }} />
+        <div className="relative px-5 pb-5 pt-0">
+          <div className="-mt-10 mb-4">
+            {!avatarFailed ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt=""
+                className="h-20 w-20 rounded-2xl border-4 border-card bg-[#FFF1E9]"
+                onError={() => setAvatarFailed(true)}
+              />
+            ) : (
+              <span className="flex h-20 w-20 items-center justify-center rounded-2xl border-4 border-card bg-[#FFF1E9] text-[22px] font-bold text-sunrise-coral">
+                {initials}
+              </span>
+            )}
+          </div>
+          <h2 className="text-[20px] font-semibold tracking-[-0.03em]">
+            {session.name}
+          </h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">{handle}</p>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">{session.email}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Pill>{session.roleName ?? "Viewer"}</Pill>
+            <Pill>{session.statusName ?? "Active"}</Pill>
+          </div>
         </div>
       </section>
 
       <section className={`${CARD} lg:col-span-7`}>
-        <h2 className="text-[15px] font-semibold tracking-[-0.02em]">Account</h2>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Field label="Name" value={session.name} />
-          <Field label="Email" value={session.email} />
-          <Field label="Phone" value={session.phone} />
+        <h2 className="text-[15px] font-semibold tracking-[-0.02em]">
+          Account details
+        </h2>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Full name" value={session.name} />
+          <Field label="Handle" value={handle} />
+          <Field label="First name" value={session.firstName || "—"} />
+          <Field label="Last name" value={session.lastName || "—"} />
+          <Field label="Email" value={session.email || "—"} />
+          <Field label="Phone" value={session.phone || "—"} />
+          <Field label="Role" value={session.roleName ?? "Viewer"} />
+          <Field label="Status" value={session.statusName ?? "Active"} />
+          <Field label="Account ID" value={session.id} />
+          <Field label="Member since" value={memberSince} />
         </div>
       </section>
 
       <section className={`${CARD} lg:col-span-7`}>
-        <h2 className="text-[15px] font-semibold tracking-[-0.02em]">Recent wallet activity</h2>
-        <LedgerTable entries={ledger.slice(0, 4)} />
-      </section>
-
-      <section className={`${CARD} lg:col-span-5`}>
-        <h2 className="text-[15px] font-semibold tracking-[-0.02em]">Watch next</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-[15px] font-semibold tracking-[-0.02em]">
+            Recent activity
+          </h2>
+          <button
+            type="button"
+            onClick={onOpenActivity}
+            className="text-[13px] font-medium text-sky-blue hover:underline"
+          >
+            View all
+          </button>
+        </div>
         <div className="mt-4 flex flex-col gap-3">
-          {channels.map((channel) => (
-            <div key={channel.id} className={`flex items-center justify-between rounded-xl p-3 ${LINE}`}>
-              <div>
-                <p className="text-[14px] font-medium">{channel.name}</p>
-                <p className="text-[12px] text-muted-foreground">{channel.handle}</p>
+          {mockActivity.slice(0, 3).map((row) => (
+            <div
+              key={row.id}
+              className={`flex items-center justify-between gap-3 rounded-xl px-3 py-3 ${LINE}`}
+            >
+              <div className="min-w-0">
+                <p className="truncate text-[14px] font-medium">{row.title}</p>
+                <p className="text-[12px] text-muted-foreground">{row.status}</p>
               </div>
-              <span className="text-[11px] font-semibold text-muted-foreground">{channel.status}</span>
+              <span className="shrink-0 text-[12px] text-muted-foreground">
+                {row.time}
+              </span>
             </div>
           ))}
         </div>
       </section>
-    </div>
-  );
-}
 
-function WalletPanel({
-  session,
-  balance,
-  ledger,
-  onTopUp,
-}: {
-  session: UserSession;
-  balance: number;
-  ledger: WalletEntry[];
-  onTopUp: () => void;
-}) {
-  return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-      <article className={CARD}>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Balance</p>
-        <p className="mt-3 text-[28px] font-semibold tracking-[-0.03em]">ETB {balance.toFixed(2)}</p>
-        <p className="mt-1.5 text-[12px] text-muted-foreground">SUM of wallet ledger entries</p>
-      </article>
-      <article className={CARD}>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Wallet ID</p>
-        <p className="mt-3 break-all text-[15px] font-medium">{session.walletId}</p>
-        <p className="mt-1.5 text-[12px] text-muted-foreground">Opened {new Date(session.createdAt).toLocaleDateString()}</p>
-      </article>
-      <article className={CARD}>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Top up</p>
-        <p className="mt-3 text-[15px] text-muted-foreground">Demo credit only — no real payment.</p>
-        <button
-          type="button"
-          onClick={onTopUp}
-          className="mt-4 rounded-full bg-sunrise-coral px-5 py-2.5 text-[13px] font-bold text-white"
-        >
-          Add ETB 10
-        </button>
-      </article>
-      <section className={`${CARD} lg:col-span-3`}>
-        <h2 className="text-[15px] font-semibold tracking-[-0.02em]">Wallet ledger</h2>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          Balances are never overwritten. Every credit and debit is an immutable row.
+      <section className={`${CARD} lg:col-span-5`}>
+        <h2 className="text-[15px] font-semibold tracking-[-0.02em]">
+          At a glance
+        </h2>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <Stat label="Sessions" value={String(mockActivity.length)} />
+          <Stat label="Confirmed" value="1" />
+          <Stat label="Active" value="1" />
+          <Stat label="Completed" value="1" />
+        </div>
+        <div className="mt-5 space-y-2">
+          <Link
+            href="/change-password"
+            className="flex items-center gap-2 rounded-xl border border-border px-3 py-3 text-[13px] font-medium transition-colors hover:bg-muted"
+          >
+            <KeyRound className="h-4 w-4 text-muted-foreground" />
+            Change password
+          </Link>
+        </div>
+        <p className="mt-4 text-[12px] leading-relaxed text-muted-foreground">
+          Engagement history will expand as you play and complete sessions.
+          Games will drive earnings in a later update.
         </p>
-        <LedgerTable entries={ledger} />
       </section>
     </div>
-  );
-}
-
-function WatchPanel({ query }: { query: string }) {
-  const list = channels.filter((channel) =>
-    `${channel.name} ${channel.handle}`.toLowerCase().includes(query.trim().toLowerCase()),
-  );
-
-  return (
-    <section className={CARD}>
-      <h2 className="text-[16px] font-semibold tracking-[-0.02em]">Registered channels</h2>
-      <p className="mt-2 max-w-xl text-[13.5px] text-muted-foreground">
-        Watching a registered channel starts an authorized session. Engagement is confirmed
-        server-side before it can affect anyone’s revenue.
-      </p>
-      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
-        {list.map((channel) => (
-          <article key={channel.id} className={`rounded-xl p-4 ${LINE}`}>
-            <p className="text-[15px] font-semibold">{channel.name}</p>
-            <p className="mt-1 text-[13px] text-muted-foreground">{channel.handle}</p>
-            <p className="mt-4 text-[12px] font-semibold uppercase tracking-[0.06em] text-sunrise-coral">
-              {channel.status}
-            </p>
-            <button
-              type="button"
-              className="mt-4 w-full rounded-full bg-foreground px-4 py-2.5 text-[13px] font-medium text-background"
-            >
-              Start session
-            </button>
-          </article>
-        ))}
-      </div>
-    </section>
   );
 }
 
 function ActivityPanel() {
   return (
     <section className={CARD}>
-      <h2 className="text-[16px] font-semibold tracking-[-0.02em]">Viewing activity</h2>
+      <h2 className="text-[16px] font-semibold tracking-[-0.02em]">
+        Viewing activity
+      </h2>
       <p className="mt-2 text-[13.5px] text-muted-foreground">
         VIEW_STARTED → SESSION_ACTIVE → ENGAGEMENT_CONFIRMED → VIEW_COMPLETED
       </p>
@@ -427,44 +402,32 @@ function ActivityPanel() {
   );
 }
 
-function LedgerTable({ entries }: { entries: WalletEntry[] }) {
-  if (entries.length === 0) {
-    return <p className="mt-4 text-[13px] text-muted-foreground">No wallet entries yet.</p>;
-  }
-
+function Field({ label, value }: { label: string; value: string }) {
   return (
-    <div className="mt-4 overflow-x-auto">
-      <table className="w-full min-w-[520px] text-left text-[13px]">
-        <thead className="text-muted-foreground">
-          <tr>
-            <th className="pb-3 font-medium">Date</th>
-            <th className="pb-3 font-medium">Description</th>
-            <th className="pb-3 font-medium">Type</th>
-            <th className="pb-3 text-right font-medium">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map((row) => (
-            <tr key={row.id} className="border-t border-border">
-              <td className="py-3 text-muted-foreground">{row.date}</td>
-              <td className="py-3">{row.label}</td>
-              <td className="py-3 capitalize text-muted-foreground">{row.type}</td>
-              <td className="py-3 text-right font-medium">
-                {row.amount < 0 ? "-" : "+"}ETB {Math.abs(row.amount).toFixed(2)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 break-all text-[14px] font-medium">{value}</p>
     </div>
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+function Pill({ children }: { children: React.ReactNode }) {
   return (
-    <div>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
-      <p className="mt-1 break-all text-[14px] font-medium">{value}</p>
+    <span className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+      {children}
+    </span>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className={`rounded-xl px-3 py-3 ${LINE}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 text-[22px] font-semibold tracking-[-0.03em]">{value}</p>
     </div>
   );
 }

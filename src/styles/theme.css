@@ -2,6 +2,7 @@
   /* Colors */
   --color-sunrise-coral: #fc5f2b;
   --color-coral-glow: #ff8b64;
+  --color-sky-blue: #3b82f6;
   --color-carbon-black: #18181b;
   --color-pure-black: #000000;
   --color-zinc-gray: #71717a;
@@ -10,9 +11,9 @@
   --color-fog-gray: #f4f4f5;
   --color-paper-white: #ffffff;
 
-  /* Typography — Inter body; Outfit display (GT Walsheim–style metrics) */
+  /* Typography — Inter for all UI */
   --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-outfit), "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), "JetBrains Mono", ui-monospace, monospace;
 
   /* Type scale — prefixed so they do not remap Tailwind text-* utilities */

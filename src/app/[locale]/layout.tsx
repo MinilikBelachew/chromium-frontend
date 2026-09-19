@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono, Outfit } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import Providers from "./providers";
 import "@/styles/globals.css";
 
@@ -11,13 +11,6 @@ import { setRequestLocale } from "next-intl/server";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
-  display: "swap",
-});
-
-const outfit = Outfit({
-  subsets: ["latin"],
-  variable: "--font-outfit",
-  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
@@ -52,7 +45,7 @@ export default async function RootLayout({
     <html
       lang={locale}
       suppressHydrationWarning
-      className={`${inter.variable} ${outfit.variable} ${jetbrainsMono.variable}`}
+      className={`${inter.variable} ${jetbrainsMono.variable}`}
     >
       <head>
         <script
@@ -61,7 +54,9 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.className} bg-background font-sans text-foreground antialiased`}>
+      <body
+        className={`${inter.className} bg-background font-sans text-foreground antialiased`}
+      >
         <NextIntlClientProvider>
           <Providers>{children}</Providers>
         </NextIntlClientProvider>

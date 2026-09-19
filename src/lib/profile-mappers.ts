@@ -41,7 +41,10 @@ export function profileToUserSession(
     name: displayName(profile.user),
     email: profile.user.email ?? "",
     phone: profile.user.phone ?? "",
-    walletId: profile.wallet ? String(profile.wallet.id) : "",
+    firstName: profile.user.firstName ?? undefined,
+    lastName: profile.user.lastName ?? undefined,
+    roleName: profile.user.role?.name ?? "Viewer",
+    statusName: profile.user.status?.name ?? "Active",
     createdAt: profile.user.createdAt
       ? String(profile.user.createdAt)
       : new Date().toISOString(),
