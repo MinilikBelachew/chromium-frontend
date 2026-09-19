@@ -21,6 +21,11 @@ on:
         required: false
         default: 'http://virwo.learnica.net/backend'
 
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+
 jobs:
   build-and-push:
     name: Build & Push Docker Image (Cloud Runner)
@@ -66,11 +71,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Push Docker Image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.prod
           push: true
+          provenance: false
           build-args: |
             NEXT_PUBLIC_API_URL=${{ github.event.inputs.api_url || 'http://virwo.learnica.net/backend' }}
           tags: |
