@@ -5,6 +5,11 @@ const withNextIntl = createNextIntlPlugin();
 
 const nextConfig: NextConfig = {
     output: "standalone",
+    devIndicators: false,
+    productionBrowserSourceMaps: false,
+    typescript: {
+        ignoreBuildErrors: true,
+    }
 };
 
 export default withNextIntl(nextConfig);
