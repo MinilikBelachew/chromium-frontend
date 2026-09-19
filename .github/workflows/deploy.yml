@@ -21,11 +21,6 @@ on:
         required: false
         default: 'http://virwo.learnica.net/backend'
 
-env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ghcr.io/${{ github.repository }}
-
 jobs:
   build-and-push:
     name: Build & Push Docker Image (Cloud Runner)
@@ -37,6 +32,7 @@ jobs:
     outputs:
       image_tag: ${{ steps.meta.outputs.image_tag }}
       image_name: ${{ steps.meta.outputs.image_name }}
+      commit_sha: ${{ steps.meta.outputs.commit_sha }}
 
     steps:
       - name: Checkout Code
@@ -44,21 +40,24 @@ jobs:
         with:
           ref: ${{ github.event.inputs.git_ref }}
 
-      - name: Extract Commit SHA & Image Tags
+      - name: Resolve Docker Image Name & Dual Tags
         id: meta
         run: |
           COMMIT_SHA=$(git rev-parse --short HEAD)
-          ENV_NAME="${{ github.event.inputs.environment || 'production' }}"
+          ENV_NAME="${{ github.event.inputs.environment }}"
           IMAGE_BASE="ghcr.io/${{ github.repository }}"
           IMAGE_BASE_LOWER=$(echo "$IMAGE_BASE" | tr '[:upper:]' '[:lower:]')
+          
           IMAGE_TAG="${ENV_NAME}-${COMMIT_SHA}"
           IMAGE_NAME="${IMAGE_BASE_LOWER}:${IMAGE_TAG}"
-          LATEST_NAME="${IMAGE_BASE_LOWER}:${ENV_NAME}"
-
+          TAGS="${IMAGE_NAME},${IMAGE_BASE_LOWER}:${ENV_NAME}"
+          
           echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "image_name=$IMAGE_NAME" >> $GITHUB_OUTPUT
-          echo "latest_name=$LATEST_NAME" >> $GITHUB_OUTPUT
-          echo "Target image: $IMAGE_NAME"
+          echo "tags=$TAGS" >> $GITHUB_OUTPUT
+          echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+          echo "Resolved target immutable image: $IMAGE_NAME"
+          echo "Resolved dual tags: $TAGS"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -71,19 +70,16 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Push Docker Image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: Dockerfile.prod
           push: true
-          provenance: false
-          build-args: |
-            NEXT_PUBLIC_API_URL=${{ github.event.inputs.api_url || 'http://virwo.learnica.net/backend' }}
-          tags: |
-            ${{ steps.meta.outputs.image_name }}
-            ${{ steps.meta.outputs.latest_name }}
+          tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ github.event.inputs.api_url || 'http://virwo.learnica.net/backend' }}
 
   deploy-to-vps:
     name: Deploy Container on VPS
@@ -96,40 +92,43 @@ jobs:
         env:
           PROD_ENV: ${{ secrets.PROD_ENV_FILE }}
           STAGE_ENV: ${{ secrets.STAGE_ENV_FILE }}
-          TARGET_ENV: ${{ github.event.inputs.environment || 'production' }}
+          TARGET_ENV: ${{ github.event.inputs.environment }}
           IMAGE_NAME: ${{ needs.build-and-push.outputs.image_name }}
           GHCR_USER: ${{ github.actor }}
-          GHCR_PAT: ${{ secrets.CR_PAT || secrets.GITHUB_TOKEN }}
+          GHCR_PAT: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
           envs: PROD_ENV,STAGE_ENV,TARGET_ENV,IMAGE_NAME,GHCR_USER,GHCR_PAT
-          command_timeout: 15m
+          command_timeout: 10m
           script: |
             set -e
-            echo "🚀 Starting Virwo Frontend deployment on VPS for environment: $TARGET_ENV..."
+            echo "Starting deployment on VPS for environment: $TARGET_ENV (Image: $IMAGE_NAME)..."
 
-            ROOT_DIR="/var/www/virwo/frontend"
-            PROJECT_NAME="virwo-frontend"
-            ENV_CONTENT="$PROD_ENV"
-
-            if [ "$TARGET_ENV" = "staging" ]; then
-              ROOT_DIR="/var/www/virwo-stage/frontend"
-              PROJECT_NAME="virwo-stage-frontend"
+            # 1. Set environment variables, folder paths, and project names
+            if [ "$TARGET_ENV" = "production" ]; then
+              ROOT_DIR="/var/www/virwo"
+              SERVICE_DIR="/var/www/virwo/frontend"
+              PROJECT_NAME="virwo"
+              ENV_CONTENT="$PROD_ENV"
+            else
+              ROOT_DIR="/var/www/virwo-stage"
+              SERVICE_DIR="/var/www/virwo-stage/frontend"
+              PROJECT_NAME="virwo-stage"
               ENV_CONTENT="$STAGE_ENV"
             fi
 
-            mkdir -p "$ROOT_DIR"
+            mkdir -p "$SERVICE_DIR"
             sudo chown -R $USER:$USER "$ROOT_DIR" 2>/dev/null || true
-            cd "$ROOT_DIR"
+            cd "$SERVICE_DIR"
 
-            # 1. Write standardized docker-compose.prod.yml on server
+            # 2. Write standardized docker-compose.prod.yml with fallback
             cat << 'EOF' > docker-compose.prod.yml
             services:
               frontend:
-                image: ${DOCKER_IMAGE}
+                image: ${DOCKER_IMAGE:-ghcr.io/minilikbelachew/chromium-frontend:production}
                 container_name: virwo-frontend
                 restart: always
                 ports:
@@ -149,9 +148,9 @@ jobs:
                 driver: bridge
             EOF
 
-            # 2. Smart Merge .env from GitHub Secret (if provided)
+            # 3. Smart Merge .env from GitHub Secrets if provided
             if [ -n "$ENV_CONTENT" ]; then
-              echo "Merging .env file from GitHub Secrets..."
+              echo "Smart merging $TARGET_ENV frontend .env with GitHub Secrets..."
               ENV_CONTENT="$ENV_CONTENT" node -e '
                 const fs = require("fs");
                 const path = process.argv[1];
@@ -196,30 +195,27 @@ jobs:
                 }
                 
                 fs.writeFileSync(path, newLines.join("\n").trim() + "\n", { mode: 0o600 });
-                console.log("Successfully merged " + incomingMap.size + " environment variables into " + path);
-              ' "$ROOT_DIR/.env"
+                console.log("Successfully merged " + incomingMap.size + " environment variable(s) into " + path);
+              ' "$SERVICE_DIR/.env"
             fi
 
-            # 3. Update DOCKER_IMAGE in .env
-            echo "Updating DOCKER_IMAGE in .env..."
-            if grep -q "^DOCKER_IMAGE=" "$ROOT_DIR/.env" 2>/dev/null; then
-              sed -i "s|^DOCKER_IMAGE=.*|DOCKER_IMAGE=$IMAGE_NAME|" "$ROOT_DIR/.env"
-            else
-              echo "DOCKER_IMAGE=$IMAGE_NAME" >> "$ROOT_DIR/.env"
+            # Persist running DOCKER_IMAGE in .env for instant visibility & docker compose fallback
+            if [ -f "$SERVICE_DIR/.env" ]; then
+              sed -i '/^DOCKER_IMAGE=/d' "$SERVICE_DIR/.env" 2>/dev/null || true
+              echo "DOCKER_IMAGE=$IMAGE_NAME" >> "$SERVICE_DIR/.env"
             fi
 
-            # 4. Pull image from GHCR & start container in seconds
-            echo "Logging in to GHCR..."
+            # 4. Pull pre-built image from GHCR and start container in seconds
+            echo "Pulling pre-built image from GHCR: $IMAGE_NAME..."
             echo "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_USER" --password-stdin 2>/dev/null || true
 
-            echo "Pulling image: $IMAGE_NAME..."
-            DOCKER_IMAGE="$IMAGE_NAME" docker compose -p "$PROJECT_NAME" -f docker-compose.prod.yml pull frontend
+            docker rm -f "virwo-frontend" 2>/dev/null || true
 
-            echo "Starting containers..."
-            DOCKER_IMAGE="$IMAGE_NAME" docker compose -p "$PROJECT_NAME" -f docker-compose.prod.yml up -d --remove-orphans
+            DOCKER_IMAGE="$IMAGE_NAME" docker compose -p "${PROJECT_NAME}-frontend" -f docker-compose.prod.yml pull frontend
+            DOCKER_IMAGE="$IMAGE_NAME" docker compose -p "${PROJECT_NAME}-frontend" -f docker-compose.prod.yml up -d frontend
 
-            # 5. Prune unused images
-            echo "Pruning dangling docker images..."
+            # 5. Clean up unused Docker images to save space
+            echo "Pruning unused Docker images..."
             docker image prune -f
 
-            echo "🎉 Virwo Frontend deployment ($IMAGE_NAME) completed successfully in seconds!"
+            echo "Frontend deployment to $TARGET_ENV (image: $IMAGE_NAME) successfully completed in seconds!"
