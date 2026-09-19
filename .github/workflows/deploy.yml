@@ -1,0 +1,122 @@
+name: Deploy Virwo Frontend to VPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: 'Commit Hash, Branch, or Tag to deploy'
+        required: true
+        default: 'main'
+      environment:
+        description: 'Target Environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - 'production'
+          - 'staging'
+      api_url:
+        description: 'NEXT_PUBLIC_API_URL (baked into Next.js client bundle)'
+        required: false
+        default: 'http://virwo.learnica.net/backend'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.git_ref }}
+
+      - name: Extract Commit SHA
+        id: vars
+        run: |
+          echo "COMMIT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.prod
+          push: true
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ github.event.inputs.api_url }}
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ github.event.inputs.environment }}-${{ steps.vars.outputs.COMMIT_SHA }}
+            ${{ env.IMAGE_NAME }}:${{ github.event.inputs.environment }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          command_timeout: 30m
+          script: |
+            set -e
+            ENV_NAME="${{ github.event.inputs.environment }}"
+            TARGET_IMAGE="${{ env.IMAGE_NAME }}:${ENV_NAME}-${{ steps.vars.outputs.COMMIT_SHA }}"
+
+            if [ "$ENV_NAME" = "production" ]; then
+              DEPLOY_DIR="/var/www/virwo/frontend"
+            else
+              DEPLOY_DIR="/var/www/virwo-staging/frontend"
+            fi
+
+            echo "=== Deploying Virwo Frontend ==="
+            echo "Target Directory: $DEPLOY_DIR"
+            echo "Target Image: $TARGET_IMAGE"
+
+            if [ ! -d "$DEPLOY_DIR" ]; then
+              echo "Creating deployment directory: $DEPLOY_DIR"
+              mkdir -p "$DEPLOY_DIR"
+            fi
+
+            cd "$DEPLOY_DIR"
+
+            # Authenticate with GHCR on VPS if credentials are provided
+            if [ -n "${{ secrets.CR_PAT }}" ]; then
+              echo "${{ secrets.CR_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            fi
+
+            # Persist the exact image tag in .env
+            if [ -f .env ]; then
+              sed -i '/^DOCKER_IMAGE=/d' .env
+              echo "DOCKER_IMAGE=$TARGET_IMAGE" >> .env
+            else
+              echo "DOCKER_IMAGE=$TARGET_IMAGE" > .env
+            fi
+
+            # Pull and restart container
+            echo "Pulling new image: $TARGET_IMAGE..."
+            docker compose -f docker-compose.prod.yml pull
+
+            echo "Restarting frontend service..."
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            echo "Pruning dangling Docker images..."
+            docker image prune -f
+
+            echo "=== Virwo Frontend Deployed Successfully ($TARGET_IMAGE) ==="
