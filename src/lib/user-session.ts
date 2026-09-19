@@ -13,7 +13,10 @@ export type UserSession = {
   name: string;
   email: string;
   phone: string;
-  walletId: string;
+  firstName?: string;
+  lastName?: string;
+  roleName?: string;
+  statusName?: string;
   createdAt: string;
 };
 
@@ -80,14 +83,12 @@ export function createUserSession(input: {
 
   const createdAt = new Date().toISOString();
   const userId = `user_${Date.now()}`;
-  const walletId = `wal_${Date.now()}`;
 
   const session: UserSession = {
     id: userId,
     name: input.name.trim(),
     email: input.email.trim().toLowerCase(),
     phone,
-    walletId,
     createdAt,
   };
 

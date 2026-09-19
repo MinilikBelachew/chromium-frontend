@@ -1,0 +1,20 @@
+services:
+  frontend:
+    image: ${DOCKER_IMAGE:-ghcr.io/minilikbelachew/chromium-frontend:production}
+    container_name: virwo-frontend
+    restart: always
+    ports:
+      - "${FRONTEND_PORT:-3090}:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://virwo.learnica.net/backend/v1}
+    networks:
+      - frontend-network
+
+networks:
+  frontend-network:
+    name: virwo-frontend-network
+    driver: bridge

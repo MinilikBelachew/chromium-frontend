@@ -20,7 +20,10 @@ import {
 import { type CreatorSession } from "@/lib/creator-session";
 import BrandLogo from "@/components/common/BrandLogo";
 import ThemeToggle from "@/components/common/ThemeToggle";
-import { useGetOnboardingMeQuery } from "@/context/services/authApi";
+import {
+  useGetOnboardingMeQuery,
+  useLogoutMutation,
+} from "@/context/services/authApi";
 import {
   useGetCreatorAnalyticsSessionsQuery,
   useGetCreatorAnalyticsSummaryQuery,
@@ -31,6 +34,7 @@ import { clearAuthTokens, hasAuthToken } from "@/lib/auth-token";
 import { isCreatorRole } from "@/lib/auth-routing";
 import { profileToCreatorSession } from "@/lib/profile-mappers";
 import { clearCreatorSession } from "@/lib/creator-session";
+import { Link } from "@/i18n/navigation";
 
 type Period = "today" | "week" | "month" | "reports";
 type NavId = "overview" | "earnings" | "sessions" | "settlements" | "channel" | "settings";
@@ -107,6 +111,7 @@ export default function CreatorDashboard() {
   const [period, setPeriod] = useState<Period>("month");
   const [nav, setNav] = useState<NavId>("overview");
   const [query, setQuery] = useState("");
+  const [logout] = useLogoutMutation();
 
   useEffect(() => {
     if (!hasAuthToken()) {
@@ -147,10 +152,14 @@ export default function CreatorDashboard() {
     );
   }
 
-  function signOut() {
-    clearAuthTokens();
+  async function signOut() {
+    try {
+      await logout().unwrap();
+    } catch {
+      clearAuthTokens();
+    }
     clearCreatorSession();
-    router.push("/");
+    router.push("/sign-in");
   }
 
   const initials = session.name
@@ -651,14 +660,22 @@ function ChannelPanel({
     <section className={CARD}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-[16px] font-semibold tracking-[-0.02em]">Channel & account</h2>
-        <button
-          type="button"
-          onClick={onSignOut}
-          className={`inline-flex items-center gap-2 rounded-full bg-card px-4 py-2 text-[13px] font-medium text-muted-foreground ${LINE} hover:text-foreground`}
-        >
-          <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
-          Sign out
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/change-password"
+            className={`inline-flex items-center gap-2 rounded-full bg-card px-4 py-2 text-[13px] font-medium text-muted-foreground ${LINE} hover:text-foreground`}
+          >
+            Change password
+          </Link>
+          <button
+            type="button"
+            onClick={onSignOut}
+            className={`inline-flex items-center gap-2 rounded-full bg-card px-4 py-2 text-[13px] font-medium text-muted-foreground ${LINE} hover:text-foreground`}
+          >
+            <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
+            Sign out
+          </button>
+        </div>
       </div>
       <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
         {fields.map(([label, value]) => (

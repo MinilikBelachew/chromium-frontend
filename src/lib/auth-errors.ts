@@ -7,6 +7,11 @@ const ERROR_MESSAGES: Record<string, string> = {
   notFound: "No account found for this email.",
   incorrectPassword: "Incorrect password.",
   emailNotExists: "No account found for this email.",
+  emailNotVerified: "Verify your email before continuing.",
+  invalidOrExpiredCode: "Invalid or expired verification code.",
+  incorrectOldPassword: "Current password is incorrect.",
+  missingOldPassword: "Enter your current password.",
+  userNotFound: "Account not found.",
 };
 
 type NestErrorBody = {

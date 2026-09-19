@@ -38,7 +38,7 @@ const Header: React.FC = () => {
             Sign in
           </Link>
           <Link
-            href="/register"
+            href="/get-started"
             className="rounded-full bg-sunrise-coral px-5 py-2.5 text-[13px] font-bold text-white transition-transform hover:-translate-y-0.5"
           >
             Get started

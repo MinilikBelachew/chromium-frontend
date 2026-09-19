@@ -21,57 +21,66 @@ export default function OnboardingShell({
   eyebrow?: string;
 }) {
   return (
-    <main className="font-display min-h-svh w-full bg-background">
-      <div className="flex min-h-svh w-full max-w-none flex-col px-6 py-8 sm:px-10 lg:px-14 xl:px-20">
-        <div className="flex w-full items-center justify-between">
-          <BrandLogo size={40} />
-          <ThemeToggle />
+    <main className="relative isolate min-h-svh w-full overflow-x-clip overflow-y-auto bg-background font-sans">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10"
+        style={{
+          background:
+            "radial-gradient(55% 40% at 50% -8%, color-mix(in srgb, var(--color-sunrise-coral) 14%, transparent), transparent 70%)",
+        }}
+      />
+
+      <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-5 py-5 sm:px-8">
+        <BrandLogo size={36} />
+        <ThemeToggle />
+      </header>
+
+      {/* Mobile progress — top */}
+      <div className="absolute inset-x-0 top-[72px] z-10 px-5 sm:px-8 lg:hidden">
+        <div className="mx-auto flex max-w-[440px] gap-2">
+          {steps.map((step, index) => (
+            <div
+              key={step.id}
+              className="h-1 flex-1 overflow-hidden rounded-full bg-muted"
+              title={step.label}
+            >
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  index <= currentIndex ? "w-full bg-sunrise-coral" : "w-0"
+                }`}
+              />
+            </div>
+          ))}
         </div>
+        <p className="mx-auto mt-2 max-w-[440px] text-center text-[12px] text-muted-foreground">
+          Step {currentIndex + 1} of {steps.length} · {steps[currentIndex]?.label}
+        </p>
+      </div>
 
-        <div className="mt-12 grid w-full flex-1 gap-12 lg:mt-16 lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] lg:gap-20 xl:gap-28">
-          <aside className="lg:pt-1">
-            {eyebrow ? (
-              <p className="mb-6 text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-gray">
-                {eyebrow}
-              </p>
-            ) : null}
-
-            <div className="mb-8 flex gap-2 lg:hidden">
-              {steps.map((step, index) => (
-                <div
-                  key={step.id}
-                  className="h-1.5 flex-1 overflow-hidden rounded-full bg-fog-gray"
-                  title={step.label}
-                >
-                  <div
-                    className={`h-full rounded-full transition-all duration-300 ${
-                      index <= currentIndex ? "w-full bg-sunrise-coral" : "w-0"
-                    }`}
-                  />
-                </div>
-              ))}
+      {/* Centered form */}
+      <div className="flex min-h-svh items-center justify-center px-5 py-28 sm:px-8">
+        <div className="w-full max-w-[440px]">
+          {children}
+          {footer ? (
+            <div className="mt-8 text-center text-[13px] tracking-[-0.01em] text-muted-foreground">
+              {footer}
             </div>
-
-            <div className="hidden lg:block">
-              <OnboardingStepper steps={steps} currentIndex={currentIndex} />
-            </div>
-
-            <p className="mt-2 text-[13px] tracking-[-0.02em] text-zinc-gray lg:hidden">
-              Step {currentIndex + 1} of {steps.length} ·{" "}
-              {steps[currentIndex]?.label}
-            </p>
-          </aside>
-
-          <section className="w-full max-w-none pb-12 lg:self-start">
-            {children}
-            {footer ? (
-              <div className="mt-8 text-[13px] tracking-[-0.02em] text-muted-foreground">
-                {footer}
-              </div>
-            ) : null}
-          </section>
+          ) : null}
         </div>
       </div>
+
+      {/* Desktop: vertical stepper tucked in bottom-left corner — low-key, no card chrome */}
+      <aside className="pointer-events-none absolute bottom-8 left-8 z-10 hidden w-[200px] lg:block xl:bottom-10 xl:left-10">
+        <div className="pointer-events-auto">
+          {eyebrow ? (
+            <p className="mb-4 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
+              {eyebrow}
+            </p>
+          ) : null}
+          <OnboardingStepper steps={steps} currentIndex={currentIndex} />
+        </div>
+      </aside>
     </main>
   );
 }

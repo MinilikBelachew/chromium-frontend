@@ -1,5 +1,10 @@
 import { api } from "./index";
-import { saveAuthTokens, type AuthTokens } from "@/lib/auth-token";
+import {
+  clearAuthTokens,
+  getRefreshToken,
+  saveAuthTokens,
+  type AuthTokens,
+} from "@/lib/auth-token";
 import type { AuthUser } from "@/lib/auth-routing";
 
 export type LoginResponse = AuthTokens & {
@@ -11,6 +16,7 @@ export type ViewerRegisterBody = {
   password: string;
   name: string;
   phone: string;
+  emailVerifiedToken: string;
 };
 
 export type CreatorRegisterBody = {
@@ -19,12 +25,77 @@ export type CreatorRegisterBody = {
   name: string;
   channelUrl: string;
   phone?: string;
+  emailVerifiedToken: string;
 };
 
 export type LoginBody = {
   email: string;
   password: string;
 };
+
+export type GoogleLoginBody = {
+  idToken: string;
+  intent?: "viewer" | "creator";
+};
+
+export type SendEmailOtpBody = {
+  email: string;
+};
+
+export type SendEmailOtpResponse = {
+  challengeToken: string;
+  expiresIn: number;
+};
+
+export type VerifyEmailOtpBody = {
+  email: string;
+  code: string;
+  challengeToken: string;
+};
+
+export type VerifyEmailOtpResponse = {
+  emailVerifiedToken: string;
+};
+
+export type CheckPhoneBody = {
+  phone: string;
+};
+
+export type CheckPhoneResponse = {
+  available: boolean;
+  phone: string;
+};
+
+export type ForgotPasswordBody = {
+  email: string;
+};
+
+export type ForgotPasswordResponse = {
+  challengeToken: string;
+  expiresIn: number;
+};
+
+export type VerifyForgotOtpBody = {
+  email: string;
+  code: string;
+  challengeToken: string;
+};
+
+export type VerifyForgotOtpResponse = {
+  resetToken: string;
+};
+
+export type ResetPasswordBody = {
+  resetToken: string;
+  password: string;
+};
+
+export type ChangePasswordBody = {
+  oldPassword: string;
+  password: string;
+};
+
+export type RefreshResponse = AuthTokens;
 
 export type OnboardingChannel = {
   id: number;
@@ -63,7 +134,7 @@ export type OnboardingProfile = {
   wallet?: OnboardingWallet | null;
 };
 
-function persistTokens(response: LoginResponse) {
+function persistTokens(response: AuthTokens) {
   saveAuthTokens({
     token: response.token,
     refreshToken: response.refreshToken,
@@ -84,6 +155,92 @@ export const authApi = api.injectEndpoints({
         persistTokens(data);
       },
       invalidatesTags: ["Onboarding"],
+    }),
+
+    googleLogin: build.mutation<LoginResponse, GoogleLoginBody>({
+      query: (body) => ({
+        url: "/auth/google/login",
+        method: "POST",
+        body,
+      }),
+      async onQueryStarted(_arg, { queryFulfilled }) {
+        const { data } = await queryFulfilled;
+        persistTokens(data);
+      },
+      invalidatesTags: ["Onboarding"],
+    }),
+
+    sendEmailOtp: build.mutation<SendEmailOtpResponse, SendEmailOtpBody>({
+      query: (body) => ({
+        url: "/auth/email/send-otp",
+        method: "POST",
+        body,
+      }),
+    }),
+
+    verifyEmailOtp: build.mutation<VerifyEmailOtpResponse, VerifyEmailOtpBody>({
+      query: (body) => ({
+        url: "/auth/email/verify-otp",
+        method: "POST",
+        body,
+      }),
+    }),
+
+    checkPhone: build.mutation<CheckPhoneResponse, CheckPhoneBody>({
+      query: (body) => ({
+        url: "/auth/phone/check",
+        method: "POST",
+        body,
+      }),
+    }),
+
+    forgotPassword: build.mutation<ForgotPasswordResponse, ForgotPasswordBody>({
+      query: (body) => ({
+        url: "/auth/forgot/password",
+        method: "POST",
+        body,
+      }),
+    }),
+
+    verifyForgotOtp: build.mutation<
+      VerifyForgotOtpResponse,
+      VerifyForgotOtpBody
+    >({
+      query: (body) => ({
+        url: "/auth/forgot/verify-otp",
+        method: "POST",
+        body,
+      }),
+    }),
+
+    resetPassword: build.mutation<void, ResetPasswordBody>({
+      query: (body) => ({
+        url: "/auth/reset/password",
+        method: "POST",
+        body,
+      }),
+    }),
+
+    changePassword: build.mutation<void, ChangePasswordBody>({
+      query: (body) => ({
+        url: "/auth/change-password",
+        method: "POST",
+        body,
+      }),
+    }),
+
+    refresh: build.mutation<RefreshResponse, void>({
+      query: () => ({
+        url: "/auth/refresh",
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getRefreshTokenHeader()}`,
+        },
+      }),
+      async onQueryStarted(_arg, { queryFulfilled }) {
+        const { data } = await queryFulfilled;
+        persistTokens(data);
+      },
     }),
 
     viewerRegister: build.mutation<LoginResponse, ViewerRegisterBody>({
@@ -127,12 +284,32 @@ export const authApi = api.injectEndpoints({
         url: "/auth/logout",
         method: "POST",
       }),
+      async onQueryStarted(_arg, { queryFulfilled }) {
+        try {
+          await queryFulfilled;
+        } finally {
+          clearAuthTokens();
+        }
+      },
     }),
   }),
 });
 
+function getRefreshTokenHeader(): string {
+  return getRefreshToken() ?? "";
+}
+
 export const {
   useLoginMutation,
+  useGoogleLoginMutation,
+  useSendEmailOtpMutation,
+  useVerifyEmailOtpMutation,
+  useCheckPhoneMutation,
+  useForgotPasswordMutation,
+  useVerifyForgotOtpMutation,
+  useResetPasswordMutation,
+  useChangePasswordMutation,
+  useRefreshMutation,
   useViewerRegisterMutation,
   useCreatorRegisterMutation,
   useGetOnboardingMeQuery,

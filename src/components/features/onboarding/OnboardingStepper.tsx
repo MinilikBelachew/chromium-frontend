@@ -27,41 +27,43 @@ export default function OnboardingStepper({
         const upcoming = index > currentIndex;
 
         return (
-          <li key={step.id} className="relative flex gap-4 pb-8 last:pb-0">
+          <li key={step.id} className="relative flex gap-3.5 pb-7 last:pb-0">
             {index < steps.length - 1 ? (
               <span
                 aria-hidden
                 className={cn(
-                  "absolute left-[15px] top-8 h-[calc(100%-16px)] w-px",
-                  complete ? "bg-sunrise-coral" : "bg-mist-gray",
+                  "absolute left-[13px] top-7 h-[calc(100%-14px)] w-px",
+                  complete ? "bg-sunrise-coral/35" : "bg-border/60",
                 )}
               />
             ) : null}
 
             <span
               className={cn(
-                "relative z-10 grid size-8 shrink-0 place-items-center rounded-full border text-[13px] font-bold tracking-[-0.005em]",
+                "relative z-10 grid size-7 shrink-0 place-items-center rounded-full border text-[12px] font-medium tracking-[-0.01em]",
                 complete &&
-                  "border-sunrise-coral bg-sunrise-coral text-paper-white",
+                  "border-sunrise-coral/50 bg-sunrise-coral/15 text-sunrise-coral",
                 active &&
-                  "border-sunrise-coral bg-paper-white text-sunrise-coral ring-4 ring-sunrise-coral/10",
-                upcoming && "border-mist-gray bg-fog-gray text-ash-gray",
+                  "border-sunrise-coral/60 bg-transparent text-sunrise-coral",
+                upcoming && "border-border/70 bg-transparent text-muted-foreground/50",
               )}
             >
-              {complete ? <Check className="size-4" strokeWidth={3} /> : index + 1}
+              {complete ? <Check className="size-3.5" strokeWidth={2.5} /> : index + 1}
             </span>
 
-            <div className="min-w-0 pt-1">
+            <div className="min-w-0 pt-0.5">
               <p
                 className={cn(
-                  "font-display text-[15px] font-medium tracking-[-0.03em]",
-                  active || complete ? "text-carbon-black" : "text-ash-gray",
+                  "text-[13px] font-medium tracking-[-0.02em]",
+                  active && "text-foreground/85",
+                  complete && "text-foreground/70",
+                  upcoming && "text-muted-foreground/55",
                 )}
               >
                 {step.label}
               </p>
               {step.description ? (
-                <p className="mt-0.5 font-display text-[13px] font-normal leading-normal tracking-[-0.02em] text-zinc-gray">
+                <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground/55">
                   {step.description}
                 </p>
               ) : null}

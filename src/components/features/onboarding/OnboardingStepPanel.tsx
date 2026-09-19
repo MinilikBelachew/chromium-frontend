@@ -15,14 +15,16 @@ export default function OnboardingStepPanel({
   className?: string;
 }) {
   return (
-    <div className={cn("w-full max-w-none", className)}>
-      <h2 className="text-onboarding-title text-foreground">{title}</h2>
+    <div className={cn("w-full", className)}>
+      <h2 className="text-[28px] font-semibold leading-[1.15] tracking-[-0.035em] text-foreground sm:text-[32px]">
+        {title}
+      </h2>
       {subtitle ? (
-        <p className="text-onboarding-subtitle mt-4 max-w-[36em] text-muted-foreground">
+        <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
           {subtitle}
         </p>
       ) : null}
-      <div className="mt-10 w-full max-w-[520px]">{children}</div>
+      <div className="mt-8 w-full">{children}</div>
     </div>
   );
 }
