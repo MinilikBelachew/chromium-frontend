@@ -103,6 +103,9 @@ export type OnboardingChannel = {
   channelName: string;
   channelUrl: string;
   verificationStatus: string;
+  gameId?: number | null;
+  gameSlug?: string | null;
+  gameName?: string | null;
 };
 
 export type OnboardingCreator = {

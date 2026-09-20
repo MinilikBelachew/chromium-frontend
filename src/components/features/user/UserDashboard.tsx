@@ -9,6 +9,7 @@ import {
   Home,
   KeyRound,
   LogOut,
+  Trophy,
 } from "lucide-react";
 import { clearUserSession, type UserSession } from "@/lib/user-session";
 import BrandLogo from "@/components/common/BrandLogo";
@@ -17,7 +18,12 @@ import {
   useGetOnboardingMeQuery,
   useLogoutMutation,
 } from "@/context/services/authApi";
+import {
+  useGetGameLeaderboardQuery,
+  useListGamesQuery,
+} from "@/context/services/gamesApi";
 import { clearAuthTokens, hasAuthToken } from "@/lib/auth-token";
+import { gameLogoUrl } from "@/lib/game-logos";
 import { profileToUserSession } from "@/lib/profile-mappers";
 import {
   handleFromEmail,
@@ -25,7 +31,7 @@ import {
   userBannerGradient,
 } from "@/lib/dicebear";
 
-type NavId = "overview" | "activity";
+type NavId = "overview" | "leaderboards" | "activity";
 
 const LINE = "border border-border";
 const CARD = `rounded-2xl bg-card ${LINE} p-5`;
@@ -116,6 +122,13 @@ export default function UserDashboard() {
             <Home className="h-5 w-5" strokeWidth={1.75} />
           </RailButton>
           <RailButton
+            active={nav === "leaderboards"}
+            label="Leaderboards"
+            onClick={() => setNav("leaderboards")}
+          >
+            <Trophy className="h-5 w-5" strokeWidth={1.75} />
+          </RailButton>
+          <RailButton
             active={nav === "activity"}
             label="Activity"
             onClick={() => setNav("activity")}
@@ -186,7 +199,7 @@ export default function UserDashboard() {
         <main className="flex-1 px-6 py-6 lg:px-8">
           <div className="mb-6">
             <p className="text-[13px] text-muted-foreground">
-              Your account overview and viewing history.
+              Your account, daily game leaderboards, and viewing history.
             </p>
             <h1 className="mt-1.5 text-[30px] font-semibold leading-[1.15] tracking-[-0.025em]">
               Hi, {session.name.split(" ")[0]}
@@ -201,8 +214,10 @@ export default function UserDashboard() {
               bannerGradient={bannerGradient}
               initials={initials}
               onOpenActivity={() => setNav("activity")}
+              onOpenLeaderboards={() => setNav("leaderboards")}
             />
           ) : null}
+          {nav === "leaderboards" ? <LeaderboardsPanel /> : null}
           {nav === "activity" ? <ActivityPanel /> : null}
         </main>
       </div>
@@ -245,6 +260,7 @@ function Overview({
   bannerGradient,
   initials,
   onOpenActivity,
+  onOpenLeaderboards,
 }: {
   session: UserSession;
   handle: string;
@@ -252,6 +268,7 @@ function Overview({
   bannerGradient: string;
   initials: string;
   onOpenActivity: () => void;
+  onOpenLeaderboards: () => void;
 }) {
   const [avatarFailed, setAvatarFailed] = useState(false);
   const memberSince = new Date(session.createdAt).toLocaleDateString(undefined, {
@@ -259,6 +276,13 @@ function Overview({
     month: "short",
     day: "numeric",
   });
+  const { data: games = [] } = useListGamesQuery();
+  const previewSlug = games[0]?.slug || "bubble";
+  const { data: previewLb } = useGetGameLeaderboardQuery({
+    slug: previewSlug,
+    limit: 5,
+  });
+  const previewName = games.find((g) => g.slug === previewSlug)?.name || "Mini-game";
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
@@ -312,32 +336,42 @@ function Overview({
 
       <section className={`${CARD} lg:col-span-7`}>
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-[15px] font-semibold tracking-[-0.02em]">
-            Recent activity
-          </h2>
+          <div>
+            <h2 className="text-[15px] font-semibold tracking-[-0.02em]">
+              {previewName} · today
+            </h2>
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              Your best today:{" "}
+              {previewLb?.myBest != null ? previewLb.myBest : "—"}
+            </p>
+          </div>
           <button
             type="button"
-            onClick={onOpenActivity}
+            onClick={onOpenLeaderboards}
             className="text-[13px] font-medium text-sky-blue hover:underline"
           >
-            View all
+            All boards
           </button>
         </div>
         <div className="mt-4 flex flex-col gap-3">
-          {mockActivity.slice(0, 3).map((row) => (
+          {(previewLb?.entries ?? []).slice(0, 5).map((row) => (
             <div
-              key={row.id}
+              key={`${row.userId}-${row.rank}`}
               className={`flex items-center justify-between gap-3 rounded-xl px-3 py-3 ${LINE}`}
             >
               <div className="min-w-0">
-                <p className="truncate text-[14px] font-medium">{row.title}</p>
-                <p className="text-[12px] text-muted-foreground">{row.status}</p>
+                <p className="truncate text-[14px] font-medium">
+                  #{row.rank} · {row.displayName || `Player ${row.userId}`}
+                </p>
               </div>
-              <span className="shrink-0 text-[12px] text-muted-foreground">
-                {row.time}
-              </span>
+              <span className="shrink-0 text-[13px] font-semibold">{row.score}</span>
             </div>
           ))}
+          {(previewLb?.entries ?? []).length === 0 ? (
+            <p className="text-[13px] text-muted-foreground">
+              No scores yet today. Play in the Fanaye browser while watching a registered channel.
+            </p>
+          ) : null}
         </div>
       </section>
 
@@ -347,11 +381,28 @@ function Overview({
         </h2>
         <div className="mt-4 grid grid-cols-2 gap-3">
           <Stat label="Sessions" value={String(mockActivity.length)} />
-          <Stat label="Confirmed" value="1" />
-          <Stat label="Active" value="1" />
-          <Stat label="Completed" value="1" />
+          <Stat
+            label="Best today"
+            value={previewLb?.myBest != null ? String(previewLb.myBest) : "—"}
+          />
         </div>
         <div className="mt-5 space-y-2">
+          <button
+            type="button"
+            onClick={onOpenLeaderboards}
+            className="flex w-full items-center gap-2 rounded-xl border border-border px-3 py-3 text-left text-[13px] font-medium transition-colors hover:bg-muted"
+          >
+            <Trophy className="h-4 w-4 text-muted-foreground" />
+            Daily leaderboards
+          </button>
+          <button
+            type="button"
+            onClick={onOpenActivity}
+            className="flex w-full items-center gap-2 rounded-xl border border-border px-3 py-3 text-left text-[13px] font-medium transition-colors hover:bg-muted"
+          >
+            <Clapperboard className="h-4 w-4 text-muted-foreground" />
+            Viewing activity
+          </button>
           <Link
             href="/change-password"
             className="flex items-center gap-2 rounded-xl border border-border px-3 py-3 text-[13px] font-medium transition-colors hover:bg-muted"
@@ -361,11 +412,100 @@ function Overview({
           </Link>
         </div>
         <p className="mt-4 text-[12px] leading-relaxed text-muted-foreground">
-          Engagement history will expand as you play and complete sessions.
-          Games will drive earnings in a later update.
+          Play catalog mini-games in the browser sidebar while watching registered creators. Scores update the daily leaderboard immediately.
         </p>
       </section>
     </div>
+  );
+}
+
+function LeaderboardsPanel() {
+  const { data: games = [] } = useListGamesQuery();
+  const [slug, setSlug] = useState("bubble");
+  const { data: lb, isFetching } = useGetGameLeaderboardQuery({
+    slug,
+    limit: 20,
+  });
+  const catalog = games;
+
+  useEffect(() => {
+    if (games.length && !games.some((g) => g.slug === slug)) {
+      setSlug(games[0].slug);
+    }
+  }, [games, slug]);
+
+  return (
+    <section className={CARD}>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h2 className="text-[16px] font-semibold tracking-[-0.02em]">
+            Daily leaderboards
+          </h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            UTC day · {lb?.day ?? "—"} · your best today:{" "}
+            {lb?.myBest != null ? lb.myBest : "—"}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {catalog.map((game) => (
+            <button
+              key={game.slug}
+              type="button"
+              onClick={() => setSlug(game.slug)}
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-medium ${LINE} ${
+                slug === game.slug
+                  ? "bg-[#FFF1E9] text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <img
+                src={gameLogoUrl(game.slug)}
+                alt=""
+                width={20}
+                height={20}
+                className="h-5 w-5 rounded-md"
+              />
+              {game.name}
+            </button>
+          ))}
+          {catalog.length === 0 ? (
+            <p className="text-[13px] text-muted-foreground">Loading games…</p>
+          ) : null}
+        </div>
+      </div>
+      <div className="mt-5 overflow-x-auto">
+        {isFetching && !lb ? (
+          <p className="text-[13px] text-muted-foreground">Loading…</p>
+        ) : (
+          <table className="w-full min-w-[420px] text-left text-[13px]">
+            <thead className="text-muted-foreground">
+              <tr>
+                <th className="pb-3 font-medium">Rank</th>
+                <th className="pb-3 font-medium">Player</th>
+                <th className="pb-3 text-right font-medium">Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(lb?.entries ?? []).length === 0 ? (
+                <tr className="border-t border-border">
+                  <td colSpan={3} className="py-4 text-muted-foreground">
+                    No scores for this game today.
+                  </td>
+                </tr>
+              ) : (
+                lb!.entries.map((row) => (
+                  <tr key={`${row.userId}-${row.rank}`} className="border-t border-border">
+                    <td className="py-3 font-medium">#{row.rank}</td>
+                    <td className="py-3">{row.displayName || `Player ${row.userId}`}</td>
+                    <td className="py-3 text-right font-semibold">{row.score}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </section>
   );
 }
 

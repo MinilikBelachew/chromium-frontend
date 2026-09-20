@@ -10,7 +10,7 @@ const options = [
   {
     href: "/register",
     title: "Viewer",
-    description: "Watch registered channels and build a ledger-backed wallet.",
+    description: "Watch registered channels and climb daily mini-game leaderboards.",
     cta: "Join as a viewer",
     accent: "coral" as const,
   },

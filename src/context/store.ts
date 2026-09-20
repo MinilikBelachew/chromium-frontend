@@ -4,6 +4,7 @@ import { api } from "./services";
 import "./services/authApi";
 import "./services/adminApi";
 import "./services/analyticsApi";
+import "./services/gamesApi";
 
 export const store = configureStore({
   reducer: {

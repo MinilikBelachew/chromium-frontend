@@ -6,6 +6,7 @@ export type CreatorSession = {
   id: string;
   name: string;
   email: string;
+  channelId: number | null;
   channelUrl: string;
   channelName: string;
   youtubeChannelId: string;
@@ -13,6 +14,9 @@ export type CreatorSession = {
   plan: CreatorPlan;
   planStartedAt: string | null;
   createdAt: string;
+  gameId: number | null;
+  gameSlug: string | null;
+  gameName: string | null;
 };
 
 const STORAGE_KEY = "fanaye.creator.session";
@@ -99,6 +103,7 @@ export function createCreatorSession(input: {
     id: `creator_${Date.now()}`,
     name: input.name.trim(),
     email: input.email.trim().toLowerCase(),
+    channelId: null,
     channelUrl: parsed.channelUrl,
     channelName: parsed.channelName,
     youtubeChannelId: parsed.youtubeChannelId,
@@ -106,6 +111,9 @@ export function createCreatorSession(input: {
     plan: "none",
     planStartedAt: null,
     createdAt: new Date().toISOString(),
+    gameId: null,
+    gameSlug: null,
+    gameName: null,
   };
 }
 

@@ -18,6 +18,7 @@ export function profileToCreatorSession(
     id: String(profile.creator.id),
     name: displayName(profile.user),
     email: profile.user.email ?? "",
+    channelId: channel?.id ?? null,
     channelUrl: channel?.channelUrl ?? "",
     channelName: channel?.channelName ?? "YouTube Channel",
     youtubeChannelId: channel?.youtubeChannelId ?? "",
@@ -29,6 +30,9 @@ export function profileToCreatorSession(
     createdAt: profile.user.createdAt
       ? String(profile.user.createdAt)
       : new Date().toISOString(),
+    gameId: channel?.gameId ?? null,
+    gameSlug: channel?.gameSlug ?? null,
+    gameName: channel?.gameName ?? null,
   };
 }
 
