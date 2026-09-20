@@ -12,8 +12,12 @@ import {
   saveAuthTokens,
 } from "@/lib/auth-token";
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL?.trim() ||
+  "http://localhost:3001/backend/v1";
+
 const rawBaseQuery = fetchBaseQuery({
-  baseUrl: process.env.NEXT_PUBLIC_API_URL,
+  baseUrl: API_BASE_URL,
   prepareHeaders: (headers) => {
     const token = getAccessToken();
     if (token) {
@@ -34,7 +38,7 @@ const baseQueryWithReauth: BaseQueryFn<
   if (result.error && result.error.status === 401) {
     const refreshToken = getRefreshToken();
     const url =
-      typeof args === "string" ? args : (args as FetchArgs).url ?? "";
+      typeof args === "string" ? args : ((args as FetchArgs).url ?? "");
 
     // Don't loop on refresh/login endpoints
     if (
