@@ -24,6 +24,7 @@ export type AdminCreatorChannel = {
   channelUrl: string;
   verificationStatus: string;
   createdAt: string;
+  game?: { id: number; slug: string; name: string } | null;
 };
 
 export type AdminCreatorRow = {
@@ -48,6 +49,85 @@ export type AdminCreateCreatorBody = {
   name: string;
   channelUrl: string;
   phone?: string;
+};
+
+export type AdminOverviewResponse = {
+  totals: {
+    creators: number;
+    viewers: number;
+    pendingChannels: number;
+    verifiedChannels: number;
+    sessions: number;
+    plays: number;
+  };
+  activity: Array<{ date: string; sessions: number; plays: number }>;
+  gameStats: Array<{
+    slug: string;
+    name: string;
+    plays: number;
+    avgScore: number;
+  }>;
+  weeklyPlays: Array<{ date: string; plays: number; highScore: number }>;
+};
+
+export type AdminCreatorDetailResponse = {
+  creator: AdminCreatorRow;
+  totals: {
+    sessions: number;
+    plays: number;
+    uniqueViewers: number;
+    completedViews: number;
+    eligibleSessions: number;
+    totalWatchMs: number;
+    avgWatchMs: number;
+    channels: number;
+    verifiedChannels: number;
+  };
+  activity: Array<{
+    date: string;
+    sessions: number;
+    plays: number;
+    watchMs: number;
+  }>;
+  weeklyPlays: Array<{ date: string; plays: number; highScore: number }>;
+  gameStats: Array<{
+    slug: string;
+    name: string;
+    plays: number;
+    avgScore: number;
+  }>;
+  topVideos: {
+    data: Array<{
+      youtubeVideoId: string;
+      title: string;
+      sessions: number;
+      watchMs: number;
+    }>;
+    page: number;
+    hasNextPage: boolean;
+  };
+  topViewers: Array<{
+    id: number;
+    name: string;
+    email: string | null;
+    sessions: number;
+    watchMs: number;
+  }>;
+  recentSessions: {
+    data: Array<{
+      id: string;
+      title: string;
+      youtubeVideoId: string;
+      channelName: string;
+      status: string;
+      watchMs: number;
+      startedAt: string;
+      endedAt: string | null;
+      viewer: { id: number; name: string; email: string | null };
+    }>;
+    page: number;
+    hasNextPage: boolean;
+  };
 };
 
 function buildUsersQuery({ page = 1, limit = 20, roleId }: ListUsersArgs) {
@@ -76,6 +156,44 @@ export const adminApi = api.injectEndpoints({
       query: ({ page = 1, limit = 20 }) =>
         `/admin/creators?page=${page}&limit=${limit}`,
       providesTags: ["Onboarding"],
+    }),
+
+    getAdminOverview: build.query<AdminOverviewResponse, { days?: number } | void>({
+      query: (args) => {
+        const days = args && "days" in args && args.days ? args.days : 90;
+        return `/admin/overview?days=${days}`;
+      },
+      providesTags: ["Onboarding", "Games"],
+    }),
+
+    getAdminCreatorDetail: build.query<
+      AdminCreatorDetailResponse,
+      {
+        id: number;
+        days?: number;
+        videoPage?: number;
+        sessionPage?: number;
+        limit?: number;
+      }
+    >({
+      query: ({
+        id,
+        days = 90,
+        videoPage = 1,
+        sessionPage = 1,
+        limit = 5,
+      }) => {
+        const params = new URLSearchParams({
+          days: String(days),
+          videoPage: String(videoPage),
+          sessionPage: String(sessionPage),
+          limit: String(limit),
+        });
+        return `/admin/creators/${id}?${params.toString()}`;
+      },
+      providesTags: (_r, _e, arg) => [
+        { type: "Onboarding", id: `creator-${arg.id}` },
+      ],
     }),
 
     createCreator: build.mutation<AdminCreatorRow, AdminCreateCreatorBody>({
@@ -111,6 +229,8 @@ export const {
   useListUsersByRoleQuery,
   useLazyListUsersByRoleQuery,
   useListCreatorsQuery,
+  useGetAdminOverviewQuery,
+  useGetAdminCreatorDetailQuery,
   useCreateCreatorMutation,
   useUpdateChannelVerificationMutation,
 } = adminApi;

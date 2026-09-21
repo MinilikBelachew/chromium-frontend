@@ -4,6 +4,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalidPhone: "Enter a valid Ethiopian mobile number (e.g. 09xxxxxxxx).",
   invalidYouTubeChannel: "Enter a valid YouTube channel link.",
   channelAlreadyLinked: "This channel is already linked to an account.",
+  channelAlreadyRegistered: "This YouTube channel is already registered.",
+  channelGameLocked: "Channel game is locked after onboarding and cannot be changed.",
   notFound: "No account found for this email.",
   incorrectPassword: "Incorrect password.",
   emailNotExists: "No account found for this email.",
@@ -12,6 +14,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   incorrectOldPassword: "Current password is incorrect.",
   missingOldPassword: "Enter your current password.",
   userNotFound: "Account not found.",
+  googleViewerOnly:
+    "Google sign-in is for viewers only. Creators register with email.",
 };
 
 type NestErrorBody = {

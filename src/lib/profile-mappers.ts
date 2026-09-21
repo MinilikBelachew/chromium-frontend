@@ -1,5 +1,6 @@
 import type { OnboardingProfile } from "@/context/services/authApi";
 import { displayName } from "@/lib/auth-routing";
+import { formatAmharicChannelName } from "@/lib/channel-display";
 import type { CreatorSession, VerificationStatus } from "@/lib/creator-session";
 import type { UserSession } from "@/lib/user-session";
 
@@ -20,8 +21,12 @@ export function profileToCreatorSession(
     email: profile.user.email ?? "",
     channelId: channel?.id ?? null,
     channelUrl: channel?.channelUrl ?? "",
-    channelName: channel?.channelName ?? "YouTube Channel",
-    youtubeChannelId: channel?.youtubeChannelId ?? "",
+    channelName: formatAmharicChannelName(
+      channel?.channelName ?? "YouTube Channel",
+    ),
+    youtubeChannelId: formatAmharicChannelName(
+      channel?.youtubeChannelId ?? "",
+    ),
     verificationStatus: mapVerification(channel?.verificationStatus),
     plan: profile.creator.plan === "PRO" ? "pro" : "none",
     planStartedAt: profile.creator.planStartedAt

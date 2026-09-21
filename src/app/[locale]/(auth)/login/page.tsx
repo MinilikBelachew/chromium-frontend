@@ -1,6 +1,11 @@
-import React from "react";
-import UserLoginForm from "@/components/features/user/UserLoginForm";
+import { redirect } from "next/navigation";
 
-export default function LoginPage() {
-  return <UserLoginForm />;
+/** Legacy /login → canonical /sign-in */
+export default async function LoginRedirectPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  redirect(`/${locale}/sign-in`);
 }

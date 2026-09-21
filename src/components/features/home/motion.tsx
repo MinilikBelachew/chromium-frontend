@@ -23,10 +23,10 @@ export function Reveal({
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0, y: 28 }}
+      initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-12% 0px" }}
-      transition={{ duration: 0.85, delay, ease }}
+      viewport={{ once: true, amount: 0.15, margin: "0px 0px -40px 0px" }}
+      transition={{ duration: 0.7, delay, ease }}
     >
       {children}
     </motion.div>
@@ -51,20 +51,20 @@ export function RevealStagger({
       className={className}
       initial="hidden"
       whileInView="show"
-      viewport={{ once: true, margin: "-10% 0px" }}
+      viewport={{ once: true, amount: 0.12, margin: "0px 0px -40px 0px" }}
       variants={{
         hidden: {},
-        show: { transition: { staggerChildren: 0.1 } },
+        show: { transition: { staggerChildren: 0.08 } },
       }}
     >
       {React.Children.map(children, (child) => (
         <motion.div
           variants={{
-            hidden: { opacity: 0, y: 24 },
+            hidden: { opacity: 0, y: 18 },
             show: {
               opacity: 1,
               y: 0,
-              transition: { duration: 0.75, ease },
+              transition: { duration: 0.65, ease },
             },
           }}
         >

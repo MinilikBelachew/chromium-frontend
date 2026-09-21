@@ -1,7 +1,7 @@
 "use client";
 
-import CreatorSignInForm from "@/components/features/creator/CreatorSignInForm";
+import UserLoginForm from "@/components/features/user/UserLoginForm";
 
 export default function SignInPage() {
-  return <CreatorSignInForm />;
+  return <UserLoginForm />;
 }

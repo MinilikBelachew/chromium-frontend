@@ -29,6 +29,20 @@ export const gamesApi = api.injectEndpoints({
       query: () => "/games",
       providesTags: ["Games"],
     }),
+    checkChannelAvailability: build.query<
+      {
+        valid: boolean;
+        available: boolean;
+        registered: boolean;
+        channelName?: string | null;
+      },
+      { channelUrl: string }
+    >({
+      query: ({ channelUrl }) => {
+        const params = new URLSearchParams({ channelUrl });
+        return `/channels/availability?${params.toString()}`;
+      },
+    }),
     getGameLeaderboard: build.query<
       LeaderboardResponse,
       { slug: string; day?: string; limit?: number }
@@ -81,6 +95,8 @@ export const gamesApi = api.injectEndpoints({
 
 export const {
   useListGamesQuery,
+  useCheckChannelAvailabilityQuery,
+  useLazyCheckChannelAvailabilityQuery,
   useGetGameLeaderboardQuery,
   useGetChannelLeaderboardQuery,
   useSetChannelGameMutation,

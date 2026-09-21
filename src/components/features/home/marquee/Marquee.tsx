@@ -13,7 +13,7 @@ export default function Marquee() {
           {logos.map((name) => (
             <span
               key={name}
-              className="text-[13px] font-medium tracking-[0.04em] text-[#1c1c1e]/35 uppercase"
+              className="text-[13px] font-semibold tracking-[0.04em] text-[#fc5f2b] uppercase"
             >
               {name}
             </span>

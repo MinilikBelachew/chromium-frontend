@@ -5,6 +5,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Instrument Serif only on the marketing landing page */
+.landing {
+  --font-display: var(--font-instrument-serif), "Instrument Serif", Georgia, "Times New Roman",
+    serif;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -262,6 +268,10 @@
     animation: spin 18s linear infinite;
   }
 
+  .animate-loader-spin {
+    animation: spin 1.1s linear infinite;
+  }
+
   .animate-rise {
     animation: rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
@@ -307,12 +317,19 @@
   }
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .marquee-track,
   .marquee-track-reverse,
   .animate-float-slow,
   .animate-float-fast,
   .animate-spin-slow,
+  .animate-loader-spin,
   .animate-rise {
     animation: none;
   }

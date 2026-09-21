@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 export type Theme = "light" | "dark";
 
-const STORAGE_KEY = "vireo.theme";
+const STORAGE_KEY = "vero.theme";
 
 type ThemeContextValue = {
   theme: Theme;

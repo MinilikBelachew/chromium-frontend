@@ -1,5 +1,5 @@
 export const BRAND = {
-  name: "Vireo",
+  name: "Vero",
   tagline: "Verified engagement",
   logoDark: "/logo_dark.png",
   logoLight: "/logo_light.jpg",

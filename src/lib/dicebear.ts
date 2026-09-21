@@ -1,12 +1,61 @@
-/** DiceBear Notionists avatar — stable per seed (email/name). */
+/** DiceBear Notionists — same style as Vero browser (viewers / accounts). */
 export function notionistsAvatar(seed: string, size = 128): string {
-  const s = encodeURIComponent(seed.trim() || "vireo");
+  const s = encodeURIComponent(seed.trim() || "vero");
   return `https://api.dicebear.com/9.x/notionists/svg?seed=${s}&size=${size}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+}
+
+/** DiceBear Glass — fallback when a YouTube logo is unavailable. */
+export function glassAvatar(seed: string, size = 128): string {
+  const s = encodeURIComponent(seed.trim() || "vero");
+  return `https://api.dicebear.com/10.x/glass/svg?seed=${s}&size=${size}`;
+}
+
+/**
+ * YouTube channel profile image from UC… id or @handle.
+ * Uses public avatar resolvers (no YouTube API key).
+ */
+export function youtubeChannelLogo(
+  youtubeChannelId: string,
+  size = 128,
+): string | null {
+  const id = youtubeChannelId.trim();
+  if (!id) return null;
+  if (/^UC[\w-]{22}$/.test(id)) {
+    return `https://banner.yt/${encodeURIComponent(id)}/avatar?width=${size}&height=${size}`;
+  }
+  let handle = id.replace(/^@/, "");
+  if (!handle) return null;
+  // Amharic handles may be stored percent-encoded — decode before resolving.
+  if (/%[0-9A-Fa-f]{2}/.test(handle)) {
+    try {
+      const decoded = decodeURIComponent(handle);
+      if (/[\u1200-\u137F]/.test(decoded)) handle = decoded;
+    } catch {
+      /* keep encoded */
+    }
+  }
+  return `https://unavatar.io/youtube/${encodeURIComponent(handle)}?size=${size}`;
+}
+
+/**
+ * YouTube channel banner image from UC… id.
+ * Falls back to null when we only have a handle (needs canonical UC id).
+ */
+export function youtubeChannelBanner(
+  youtubeChannelId: string,
+  width = 1280,
+): string | null {
+  const id = youtubeChannelId.trim();
+  if (!id) return null;
+  if (/^UC[\w-]{22}$/.test(id)) {
+    return `https://banner.yt/${encodeURIComponent(id)}?width=${width}&format=webp`;
+  }
+  return null;
 }
 
 function hashSeed(seed: string): number {
   let h = 2166136261;
-  const s = seed.trim().toLowerCase() || "vireo";
+  const s = seed.trim().toLowerCase() || "vero";
   for (let i = 0; i < s.length; i++) {
     h ^= s.charCodeAt(i);
     h = Math.imul(h, 16777619);

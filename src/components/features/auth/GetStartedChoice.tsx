@@ -92,7 +92,7 @@ export default function GetStartedChoice() {
           <p className="mt-8 text-center text-[13px] text-muted-foreground">
             Already have an account?{" "}
             <Link
-              href="/login"
+              href="/sign-in"
               className="font-medium text-sky-blue underline-offset-4 hover:underline"
             >
               Sign in

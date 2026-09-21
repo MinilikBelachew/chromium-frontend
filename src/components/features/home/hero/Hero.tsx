@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "@/i18n/navigation";
-import BrandLogo from "@/components/common/BrandLogo";
 import {
   motion,
   useScroll,
@@ -16,6 +15,7 @@ const ease = [0.22, 1, 0.36, 1] as const;
 const navLinks = [
   { href: "#features", label: "Features" },
   { href: "#how-it-works", label: "Product" },
+  { href: "/download", label: "Download" },
   { href: "#pricing", label: "Pricing" },
   { href: "#faq", label: "FAQ" },
 ];
@@ -70,8 +70,10 @@ const Hero: React.FC = () => {
   const headerMuted = useTransform(
     scrollYProgress,
     [0, 0.28],
-    ["rgba(255, 255, 255, 0.72)", "rgba(28, 28, 30, 0.55)"],
+    ["rgba(255, 255, 255, 0.85)", "rgba(28, 28, 30, 0.65)"],
   );
+  const logoOnDark = useTransform(scrollYProgress, [0, 0.28], [1, 0]);
+  const logoOnLight = useTransform(scrollYProgress, [0, 0.28], [0, 1]);
 
   const ctaOutlineOpacity = useTransform(scrollYProgress, [0, 0.35], [1, 0]);
   const ctaSolidOpacity = useTransform(scrollYProgress, [0.25, 0.5], [0, 1]);
@@ -102,31 +104,56 @@ const Hero: React.FC = () => {
       <div className="sticky top-0 h-svh overflow-hidden bg-[#f7f5f0]">
         <header className="absolute inset-x-0 top-0 z-50">
           <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between gap-4 px-6 py-6 sm:px-8">
-            <Link href="/" className="inline-flex items-center gap-2.5" aria-label="Fanaye">
-              <BrandLogo href={null} size={28} />
+            <Link href="/" className="inline-flex items-center gap-2.5" aria-label="Vero">
+              <span className="relative inline-flex h-7 w-7 shrink-0 overflow-hidden rounded-full">
+                <motion.img
+                  src="/logo_dark.png"
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover"
+                  style={{ opacity: logoOnDark }}
+                />
+                <motion.img
+                  src="/logo_light.jpg"
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover"
+                  style={{ opacity: logoOnLight }}
+                />
+              </span>
               <motion.span
-                className="text-[15px] font-medium tracking-[-0.02em]"
+                className="font-display text-[15px] font-normal tracking-[-0.02em]"
                 style={{ color: headerColor }}
               >
-                Fanaye
+                Vero
               </motion.span>
             </Link>
             <nav className="hidden items-center gap-8 md:flex">
-              {navLinks.map((link) => (
-                <motion.a
-                  key={link.href}
-                  href={link.href}
-                  className="text-[13px] font-medium transition-opacity duration-300 hover:opacity-100"
-                  style={{ color: headerMuted }}
-                >
-                  {link.label}
-                </motion.a>
-              ))}
+              {navLinks.map((link) =>
+                link.href.startsWith("/") ? (
+                  <motion.div key={link.href} style={{ color: headerMuted }}>
+                    <Link
+                      href={link.href}
+                      className="text-[13px] font-medium transition-opacity duration-300 hover:opacity-100"
+                      style={{ color: "inherit" }}
+                    >
+                      {link.label}
+                    </Link>
+                  </motion.div>
+                ) : (
+                  <motion.a
+                    key={link.href}
+                    href={link.href}
+                    className="text-[13px] font-medium transition-opacity duration-300 hover:opacity-100"
+                    style={{ color: headerMuted }}
+                  >
+                    {link.label}
+                  </motion.a>
+                ),
+              )}
             </nav>
             <motion.div style={{ color: headerColor }}>
               <Link
                 href="/get-started"
-                className="text-[13px] font-medium transition-opacity duration-300 hover:opacity-70"
+                className="text-[13px] font-normal transition-opacity duration-300 hover:opacity-70"
                 style={{ color: "inherit" }}
               >
                 Get started
@@ -158,58 +185,66 @@ const Hero: React.FC = () => {
 
           <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 pb-16 pt-24 text-center sm:px-10">
             <motion.p
-              className="text-[12px] font-medium tracking-[0.2em] text-white/60 uppercase"
+              className="font-display text-[12px] font-normal tracking-[0.2em] text-[#fc5f2b] uppercase"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.15, ease }}
             >
-              Fanaye
+              Vero
             </motion.p>
             <motion.h1
-              className="mt-6 max-w-[900px] text-[clamp(2.5rem,7vw,4.5rem)] font-medium leading-[1.05] tracking-[-0.04em] text-white"
+              className="mt-6 max-w-[900px] font-display text-[clamp(2.5rem,7vw,4.5rem)] font-normal leading-[1.05] tracking-[-0.04em] text-white"
               initial={{ opacity: 0, y: 28 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.95, delay: 0.25, ease }}
             >
               The browser that turns watching into{" "}
-              <em className="italic font-medium text-white">real</em> engagement
+              <em className="italic font-normal text-[#fc5f2b]">real</em> engagement
             </motion.h1>
             <motion.p
-              className="mt-6 max-w-[480px] text-[16px] leading-[1.55] text-white/70"
+              className="mt-6 max-w-[480px] text-[16px] leading-[1.55] text-white/85"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.85, delay: 0.4, ease }}
             >
-              Creators register channels. Viewers watch in Fanaye and play mini-games beside the
+              Creators register channels. Viewers watch in Vero and play mini-games beside the
               video. Daily leaderboards — no spoofed views.
             </motion.p>
 
-            <div className="relative mt-10 h-12 w-full max-w-[280px]">
-              <motion.div
-                style={{ opacity: ctaOutlineOpacity, pointerEvents: ctaOutlineEvents }}
-                className="absolute inset-0 flex items-center justify-center"
-              >
-                <Link
-                  href="/get-started"
-                  className="inline-flex whitespace-nowrap border border-white/35 px-7 py-3 text-[13px] font-medium tracking-[-0.01em] text-white"
+            <div className="relative mt-10 flex w-full max-w-[420px] flex-col items-center gap-3 sm:max-w-none sm:flex-row sm:justify-center">
+              <div className="relative h-12 w-full max-w-[280px]">
+                <motion.div
+                  style={{ opacity: ctaOutlineOpacity, pointerEvents: ctaOutlineEvents }}
+                  className="absolute inset-0 flex items-center justify-center"
                 >
-                  Get started for free
-                </Link>
-              </motion.div>
-              <motion.div
-                style={{ opacity: ctaSolidOpacity, pointerEvents: ctaSolidEvents }}
-                className="absolute inset-0 flex items-center justify-center"
-              >
-                <Link
-                  href="/get-started"
-                  className="inline-flex items-center gap-3 whitespace-nowrap bg-[#141414] py-2.5 pr-5 pl-2.5 text-[13px] font-medium text-white"
+                  <Link
+                    href="/download"
+                    className="inline-flex w-full items-center justify-center whitespace-nowrap border border-white/50 px-7 py-3 text-[13px] font-medium tracking-[-0.01em] text-white"
+                  >
+                    Download Vero
+                  </Link>
+                </motion.div>
+                <motion.div
+                  style={{ opacity: ctaSolidOpacity, pointerEvents: ctaSolidEvents }}
+                  className="absolute inset-0 flex items-center justify-center"
                 >
-                  <span className="flex h-7 w-7 items-center justify-center bg-[#fc5f2b] text-[16px] leading-none text-white">
-                    ›
-                  </span>
-                  Get started for free
-                </Link>
-              </motion.div>
+                  <Link
+                    href="/download"
+                    className="inline-flex w-full items-center justify-center gap-3 whitespace-nowrap bg-[#141414] py-2.5 pr-5 pl-2.5 text-[13px] font-medium text-white"
+                  >
+                    <span className="flex h-7 w-7 items-center justify-center bg-[#fc5f2b] text-[16px] leading-none text-white">
+                      ›
+                    </span>
+                    Download Vero
+                  </Link>
+                </motion.div>
+              </div>
+              <Link
+                href="/get-started"
+                className="text-[13px] font-medium text-white/75 transition-opacity hover:text-white"
+              >
+                Get started for free
+              </Link>
             </div>
           </div>
         </motion.div>
@@ -221,19 +256,22 @@ const Hero: React.FC = () => {
 function HeroCopy() {
   return (
     <div className="relative z-10 mx-auto flex min-h-svh max-w-[900px] flex-col items-center justify-center px-6 pb-20 pt-28 text-center">
-      <p className="text-[12px] font-medium tracking-[0.2em] text-white/60 uppercase">Fanaye</p>
-      <h1 className="mt-6 text-[clamp(2.5rem,7vw,4.5rem)] font-medium leading-[1.05] tracking-[-0.04em] text-white">
-        The browser that turns watching into real engagement
+      <p className="font-display text-[12px] font-normal tracking-[0.2em] text-[#fc5f2b] uppercase">
+        Vero
+      </p>
+      <h1 className="mt-6 font-display text-[clamp(2.5rem,7vw,4.5rem)] font-normal leading-[1.05] tracking-[-0.04em] text-white">
+        The browser that turns watching into{" "}
+        <em className="italic text-[#fc5f2b]">real</em> engagement
       </h1>
-      <p className="mt-6 max-w-[480px] text-[16px] leading-[1.55] text-white/70">
-        Creators register channels. Viewers watch in Fanaye and play mini-games beside the video.
+      <p className="mt-6 max-w-[480px] text-[16px] leading-[1.55] text-white/85">
+        Creators register channels. Viewers watch in Vero and play mini-games beside the video.
         Daily leaderboards — no spoofed views.
       </p>
       <Link
-        href="/get-started"
-        className="mt-10 inline-flex border border-white/30 px-7 py-3 text-[13px] font-medium text-white"
+        href="/download"
+        className="mt-10 inline-flex border border-white/50 px-7 py-3 text-[13px] font-medium text-white"
       >
-        Get started for free
+        Download Vero
       </Link>
     </div>
   );

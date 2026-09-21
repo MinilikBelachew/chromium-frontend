@@ -116,7 +116,7 @@ export default function ForgotPasswordForm() {
         subtitle="Your password has been reset. Sign in with your new password."
         footer={
           <Link
-            href="/login"
+            href="/sign-in"
             className="font-medium text-sky-blue underline-offset-4 hover:underline"
           >
             Go to sign in
@@ -126,7 +126,7 @@ export default function ForgotPasswordForm() {
         <Button
           type="button"
           className="w-full"
-          onClick={() => router.push("/login")}
+          onClick={() => router.push("/sign-in")}
         >
           Sign in
           <ArrowRight className="h-4 w-4" />
@@ -155,7 +155,7 @@ export default function ForgotPasswordForm() {
         <>
           Remembered it?{" "}
           <Link
-            href="/login"
+            href="/sign-in"
             className="font-medium text-sky-blue underline-offset-4 hover:underline"
           >
             Sign in

@@ -11,18 +11,19 @@ import {
   LogOut,
   Trophy,
 } from "lucide-react";
-import { clearUserSession, type UserSession } from "@/lib/user-session";
+import { type UserSession } from "@/lib/user-session";
 import BrandLogo from "@/components/common/BrandLogo";
 import ThemeToggle from "@/components/common/ThemeToggle";
+import SignOutConfirmDialog from "@/components/features/auth/SignOutConfirmDialog";
 import {
   useGetOnboardingMeQuery,
-  useLogoutMutation,
 } from "@/context/services/authApi";
 import {
   useGetGameLeaderboardQuery,
   useListGamesQuery,
 } from "@/context/services/gamesApi";
-import { clearAuthTokens, hasAuthToken } from "@/lib/auth-token";
+import { hasAuthToken } from "@/lib/auth-token";
+import { clearClientAuthSession } from "@/lib/auth-session";
 import { gameLogoUrl } from "@/lib/game-logos";
 import { profileToUserSession } from "@/lib/profile-mappers";
 import {
@@ -30,6 +31,7 @@ import {
   notionistsAvatar,
   userBannerGradient,
 } from "@/lib/dicebear";
+import { useSignOut } from "@/hooks/useSignOut";
 
 type NavId = "overview" | "leaderboards" | "activity";
 
@@ -48,25 +50,31 @@ export default function UserDashboard() {
   const [ready, setReady] = useState(false);
   const [nav, setNav] = useState<NavId>("overview");
   const [avatarFailed, setAvatarFailed] = useState(false);
-  const [logout] = useLogoutMutation();
+  const {
+    confirmOpen,
+    signingOut,
+    requestSignOut,
+    cancelSignOut,
+    confirmSignOut,
+  } = useSignOut();
 
   useEffect(() => {
     if (!hasAuthToken()) {
-      router.replace("/login");
+      router.replace("/sign-in");
       return;
     }
     setReady(true);
   }, [router]);
 
   const { data, isError, isLoading } = useGetOnboardingMeQuery(undefined, {
-    skip: !ready,
+    skip: !ready || signingOut,
   });
 
   useEffect(() => {
     if (!data) return;
     const mapped = profileToUserSession(data);
     if (!mapped) {
-      router.replace("/login");
+      router.replace("/sign-in");
       return;
     }
     setSession(mapped);
@@ -75,10 +83,18 @@ export default function UserDashboard() {
 
   useEffect(() => {
     if (isError) {
-      clearAuthTokens();
-      router.replace("/login");
+      clearClientAuthSession();
+      router.replace("/sign-in");
     }
   }, [isError, router]);
+
+  if (signingOut) {
+    return (
+      <main className="grid min-h-svh place-items-center bg-card font-sans text-[15px] text-muted-foreground">
+        Signing out…
+      </main>
+    );
+  }
 
   if (!session || !ready || isLoading) {
     return (
@@ -98,16 +114,6 @@ export default function UserDashboard() {
     .slice(0, 2)
     .join("")
     .toUpperCase();
-
-  async function signOut() {
-    try {
-      await logout().unwrap();
-    } catch {
-      clearAuthTokens();
-    }
-    clearUserSession();
-    router.push("/login");
-  }
 
   return (
     <div className="flex min-h-svh bg-background font-sans text-foreground">
@@ -139,12 +145,21 @@ export default function UserDashboard() {
         <button
           type="button"
           aria-label="Sign out"
-          onClick={signOut}
+          onClick={requestSignOut}
           className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <LogOut className="h-5 w-5" strokeWidth={1.75} />
         </button>
       </aside>
+
+      <SignOutConfirmDialog
+        open={confirmOpen}
+        busy={signingOut}
+        onCancel={cancelSignOut}
+        onConfirm={() => {
+          void confirmSignOut();
+        }}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="grid grid-cols-[1fr_auto] items-center gap-6 border-b border-border px-6 py-4 lg:px-8">
@@ -369,7 +384,7 @@ function Overview({
           ))}
           {(previewLb?.entries ?? []).length === 0 ? (
             <p className="text-[13px] text-muted-foreground">
-              No scores yet today. Play in the Fanaye browser while watching a registered channel.
+              No scores yet today. Play in the Vero browser while watching a registered channel.
             </p>
           ) : null}
         </div>

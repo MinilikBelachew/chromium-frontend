@@ -1,6 +1,7 @@
 import React from "react";
 
 import Footer from "@/components/layout/footer/Footer";
+import LandingShell from "@/components/features/home/LandingShell";
 import Hero from "@/components/features/home/hero/Hero";
 import Marquee from "@/components/features/home/marquee/Marquee";
 import Features from "@/components/features/home/features/Features";
@@ -14,7 +15,7 @@ import BigCta from "@/components/features/home/cta/BigCta";
 
 const HomePage: React.FC = () => {
   return (
-    <div className="min-h-svh bg-[#f7f5f0] text-[#1c1c1e]">
+    <LandingShell>
       <main>
         <Hero />
         <Marquee />
@@ -28,7 +29,7 @@ const HomePage: React.FC = () => {
         <BigCta />
       </main>
       <Footer />
-    </div>
+    </LandingShell>
   );
 };
 

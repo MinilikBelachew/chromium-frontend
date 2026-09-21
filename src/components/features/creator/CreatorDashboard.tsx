@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useRouter } from "@/i18n/navigation";
+import { useRouter } from "@/i18n/navigation";
 import {
   ArrowUpRight,
   Bell,
@@ -22,7 +22,6 @@ import {
   Trophy,
 } from "lucide-react";
 import {
-  clearCreatorSession,
   parseYouTubeChannel,
   type CreatorSession,
 } from "@/lib/creator-session";
@@ -30,13 +29,15 @@ import { gameLogoUrl } from "@/lib/game-logos";
 import { handleFromEmail, notionistsAvatar } from "@/lib/dicebear";
 import BrandLogo from "@/components/common/BrandLogo";
 import ThemeToggle from "@/components/common/ThemeToggle";
+import PasswordFields from "@/components/features/auth/PasswordFields";
+import SignOutConfirmDialog from "@/components/features/auth/SignOutConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   useAddOnboardingChannelMutation,
+  useChangePasswordMutation,
   useGetOnboardingMeQuery,
-  useLogoutMutation,
 } from "@/context/services/authApi";
 import {
   useGetCreatorAnalyticsSessionsQuery,
@@ -48,17 +49,19 @@ import {
   useGetChannelLeaderboardQuery,
   useGetGameLeaderboardQuery,
   useListGamesQuery,
-  useSetChannelGameMutation,
 } from "@/context/services/gamesApi";
 import { parseApiError } from "@/lib/auth-errors";
-import { clearAuthTokens, hasAuthToken } from "@/lib/auth-token";
+import { hasAuthToken } from "@/lib/auth-token";
+import { clearClientAuthSession } from "@/lib/auth-session";
 import { isCreatorRole } from "@/lib/auth-routing";
+import { isPasswordAcceptable } from "@/lib/password-strength";
 import { profileToCreatorSession } from "@/lib/profile-mappers";
+import { useChannelAvailability } from "@/hooks/useChannelAvailability";
+import { useSignOut } from "@/hooks/useSignOut";
 
 type Period = "today" | "week" | "month" | "reports";
 type NavId =
   | "overview"
-  | "earnings"
   | "sessions"
   | "settlements"
   | "leaderboard"
@@ -294,7 +297,6 @@ function NavIcon({ children }: { children: React.ReactNode }) {
 
 const navItems: { id: NavId; icon: React.ReactNode; label: string }[] = [
   { id: "overview", icon: <Home strokeWidth={1.75} />, label: "Overview" },
-  { id: "earnings", icon: <Layers strokeWidth={1.75} />, label: "Earnings" },
   { id: "sessions", icon: <Clapperboard strokeWidth={1.75} />, label: "Sessions" },
   { id: "settlements", icon: <Layers strokeWidth={1.75} />, label: "Settlements" },
   { id: "leaderboard", icon: <Trophy strokeWidth={1.75} />, label: "Leaderboard" },
@@ -314,22 +316,54 @@ function ChannelRequiredGate({
   onAdded: () => void;
   onSignOut: () => void;
 }) {
+  const [gateStep, setGateStep] = useState<"channel" | "game">("channel");
   const [channelUrl, setChannelUrl] = useState("");
+  const [gameSlug, setGameSlug] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [addChannel, { isLoading }] = useAddOnboardingChannelMutation();
+  const { data: games = [], isLoading: gamesLoading } = useListGamesQuery();
   const parsed = useMemo(() => parseYouTubeChannel(channelUrl), [channelUrl]);
+  const {
+    status: channelStatus,
+    message: channelHint,
+    canContinue: channelReady,
+  } = useChannelAvailability(channelUrl);
 
-  async function onSubmit(event: React.FormEvent) {
+  async function onSubmitChannel(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
     if (!parsed) {
       setError("Enter a valid YouTube channel link");
       return;
     }
+    if (channelStatus === "taken") {
+      setError("This YouTube channel is already registered.");
+      return;
+    }
+    if (!channelReady) {
+      setError("Wait until the channel is validated.");
+      return;
+    }
+    setGateStep("game");
+  }
+
+  async function onSubmitGame(event: React.FormEvent) {
+    event.preventDefault();
+    setError(null);
+    if (!parsed) {
+      setGateStep("channel");
+      setError("Enter a valid YouTube channel link");
+      return;
+    }
+    if (!gameSlug) {
+      setError("Pick a mini-game for your channel");
+      return;
+    }
     try {
       await addChannel({
         channelUrl: parsed.channelUrl,
         channelName: parsed.channelName,
+        gameSlug,
       }).unwrap();
       onAdded();
     } catch (err) {
@@ -341,40 +375,149 @@ function ChannelRequiredGate({
     <main className="grid min-h-[100svh] place-items-center bg-background px-6 font-sans text-foreground">
       <div className="w-full max-w-md">
         <BrandLogo size={48} />
-        <h1 className="mt-6 text-[28px] font-semibold tracking-[-0.03em]">
-          Add your YouTube channel
-        </h1>
-        <p className="mt-2 text-[14px] text-muted-foreground">
-          Hi {name.split(" ")[0] || "there"} — creators need a channel before the dashboard unlocks.
-        </p>
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="channelUrl">YouTube channel URL</Label>
-            <Input
-              id="channelUrl"
-              value={channelUrl}
-              onChange={(e) => setChannelUrl(e.target.value)}
-              placeholder="https://youtube.com/@yourchannel"
-              className="h-11 rounded-[15px]"
-              required
-            />
-          </div>
-          {error ? (
-            <p className="rounded-[15px] border border-border bg-muted px-4 py-3 text-[13px]">
-              {error}
+        {gateStep === "channel" ? (
+          <>
+            <h1 className="mt-6 text-[28px] font-semibold tracking-[-0.03em]">
+              Add your YouTube channel
+            </h1>
+            <p className="mt-2 text-[14px] text-muted-foreground">
+              Hi {name.split(" ")[0] || "there"} — creators need a channel before the dashboard unlocks.
             </p>
-          ) : null}
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Saving…" : "Continue"}
-          </Button>
-          <button
-            type="button"
-            onClick={onSignOut}
-            className="w-full text-[13px] text-muted-foreground underline-offset-4 hover:underline"
-          >
-            Sign out
-          </button>
-        </form>
+            <form onSubmit={onSubmitChannel} className="mt-6 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="channelUrl">YouTube channel URL</Label>
+                <Input
+                  id="channelUrl"
+                  value={channelUrl}
+                  onChange={(e) => {
+                    setError(null);
+                    setChannelUrl(e.target.value);
+                  }}
+                  placeholder="https://youtube.com/@yourchannel"
+                  className={`h-11 rounded-[15px] ${
+                    channelStatus === "taken" || channelStatus === "invalid"
+                      ? "border-red-400"
+                      : channelStatus === "available"
+                        ? "border-emerald-400"
+                        : ""
+                  }`}
+                  required
+                />
+                {channelUrl.trim() ? (
+                  <p
+                    className={`text-[12px] ${
+                      channelStatus === "taken" || channelStatus === "invalid"
+                        ? "text-red-600"
+                        : channelStatus === "available"
+                          ? "text-emerald-700"
+                          : "text-muted-foreground"
+                    }`}
+                  >
+                    {channelHint}
+                  </p>
+                ) : null}
+              </div>
+              {error ? (
+                <p className="rounded-[15px] border border-border bg-muted px-4 py-3 text-[13px]">
+                  {error}
+                </p>
+              ) : null}
+              <Button type="submit" className="w-full" disabled={!channelReady}>
+                Continue
+              </Button>
+              <button
+                type="button"
+                onClick={onSignOut}
+                className="w-full text-[13px] text-muted-foreground underline-offset-4 hover:underline"
+              >
+                Sign out
+              </button>
+            </form>
+          </>
+        ) : (
+          <>
+            <h1 className="mt-6 text-[28px] font-semibold tracking-[-0.03em]">
+              Choose your channel game
+            </h1>
+            <p className="mt-2 text-[14px] text-muted-foreground">
+              Viewers play this mini-game beside your videos. This choice is locked after you continue.
+            </p>
+            <form onSubmit={onSubmitGame} className="mt-6 space-y-4">
+              {gamesLoading ? (
+                <p className="text-[13px] text-muted-foreground">Loading games…</p>
+              ) : (
+                <div className="flex max-h-[340px] flex-col gap-2 overflow-y-auto pr-1">
+                  {games.map((game) => {
+                    const active = gameSlug === game.slug;
+                    return (
+                      <button
+                        key={game.slug}
+                        type="button"
+                        onClick={() => {
+                          setError(null);
+                          setGameSlug(game.slug);
+                        }}
+                        className={`flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors ${LINE} ${
+                          active
+                            ? "bg-[#FFF1E9] text-foreground"
+                            : "bg-card text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <img
+                          src={gameLogoUrl(game.slug)}
+                          alt=""
+                          className="h-9 w-9 shrink-0 rounded-lg object-contain"
+                        />
+                        <span className="min-w-0 flex-1 text-[14px] font-medium tracking-[-0.01em]">
+                          {game.name}
+                        </span>
+                        {active ? (
+                          <CheckCircle2
+                            className="h-4 w-4 shrink-0 text-sunrise-coral"
+                            strokeWidth={2}
+                          />
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {error ? (
+                <p className="rounded-[15px] border border-border bg-muted px-4 py-3 text-[13px]">
+                  {error}
+                </p>
+              ) : null}
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  disabled={isLoading}
+                  onClick={() => {
+                    setError(null);
+                    setGateStep("channel");
+                  }}
+                >
+                  Back
+                </Button>
+                <Button
+                  type="submit"
+                  className="flex-1"
+                  disabled={isLoading || !gameSlug}
+                >
+                  {isLoading ? "Saving…" : "Continue"}
+                </Button>
+              </div>
+              <button
+                type="button"
+                onClick={onSignOut}
+                className="w-full text-[13px] text-muted-foreground underline-offset-4 hover:underline"
+              >
+                Sign out
+              </button>
+            </form>
+          </>
+        )}
       </div>
     </main>
   );
@@ -387,7 +530,13 @@ export default function CreatorDashboard() {
   const [period, setPeriod] = useState<Period>("month");
   const [nav, setNav] = useState<NavId>("overview");
   const [query, setQuery] = useState("");
-  const [logout] = useLogoutMutation();
+  const {
+    confirmOpen,
+    signingOut,
+    requestSignOut,
+    cancelSignOut,
+    confirmSignOut,
+  } = useSignOut();
 
   useEffect(() => {
     if (!hasAuthToken()) {
@@ -398,7 +547,7 @@ export default function CreatorDashboard() {
   }, [router]);
 
   const { data, isError, isLoading, refetch } = useGetOnboardingMeQuery(undefined, {
-    skip: !ready,
+    skip: !ready || signingOut,
   });
 
   useEffect(() => {
@@ -413,19 +562,17 @@ export default function CreatorDashboard() {
 
   useEffect(() => {
     if (isError) {
-      clearAuthTokens();
+      clearClientAuthSession();
       router.replace("/sign-in");
     }
   }, [isError, router]);
 
-  async function signOut() {
-    try {
-      await logout().unwrap();
-    } catch {
-      clearAuthTokens();
-    }
-    clearCreatorSession();
-    router.push("/sign-in");
+  if (signingOut) {
+    return (
+      <main className="grid min-h-[100svh] place-items-center bg-card font-sans text-[15px] text-muted-foreground">
+        Signing out…
+      </main>
+    );
   }
 
   if (!session || !ready || isLoading) {
@@ -438,15 +585,23 @@ export default function CreatorDashboard() {
 
   if (!session.channelId) {
     return (
-      <ChannelRequiredGate
-        name={session.name}
-        onAdded={() => {
-          void refetch();
-        }}
-        onSignOut={() => {
-          void signOut();
-        }}
-      />
+      <>
+        <ChannelRequiredGate
+          name={session.name}
+          onAdded={() => {
+            void refetch();
+          }}
+          onSignOut={requestSignOut}
+        />
+        <SignOutConfirmDialog
+          open={confirmOpen}
+          busy={signingOut}
+          onCancel={cancelSignOut}
+          onConfirm={() => {
+            void confirmSignOut();
+          }}
+        />
+      </>
     );
   }
 
@@ -486,12 +641,21 @@ export default function CreatorDashboard() {
           type="button"
           title="Sign out"
           aria-label="Sign out"
-          onClick={signOut}
+          onClick={requestSignOut}
           className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <LogOut className="h-5 w-5" strokeWidth={1.75} />
         </button>
       </aside>
+
+      <SignOutConfirmDialog
+        open={confirmOpen}
+        busy={signingOut}
+        onCancel={cancelSignOut}
+        onConfirm={() => {
+          void confirmSignOut();
+        }}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 grid grid-cols-[1fr_auto] items-center gap-6 border-b border-border bg-background/95 px-6 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:grid-cols-[1fr_auto_1fr] lg:px-8">
@@ -556,7 +720,7 @@ export default function CreatorDashboard() {
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-[13px] text-muted-foreground">
-                Manage earnings, sessions, and settlements
+                Manage sessions, leaderboards, and settlements
               </p>
               <h1 className="mt-1.5 text-[30px] font-semibold leading-[1.15] tracking-[-0.025em]">
                 Creator Dashboard
@@ -574,36 +738,67 @@ export default function CreatorDashboard() {
           </div>
 
           {session.verificationStatus === "pending" ? (
-            <div
-              className="relative mb-5 min-h-[140px] overflow-hidden rounded-2xl p-5 text-white"
-              style={{
-                backgroundImage: "url('/Abstract%20Gradient.jpg')",
-                backgroundSize: "100% 100%",
-                backgroundPosition: "center",
-                backgroundRepeat: "no-repeat",
-              }}
-            >
-              <div className="absolute inset-0 bg-black/35" aria-hidden />
-              <div className="relative flex flex-wrap items-start gap-3">
-                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-white" strokeWidth={1.75} />
-                <div className="min-w-0 flex-1">
-                  <p className="font-display text-[15px] font-semibold tracking-[-0.02em]">
-                    Channel verification pending
-                  </p>
-                  <p className="mt-1 text-[13px] leading-[1.5] text-white/85">
-                    Admins review ownership before engagement counts toward revenue. Dashboard tools
-                    stay available while verification is pending.
-                  </p>
+            <div className="relative mb-5 overflow-hidden rounded-[22px]">
+              {/* Spectral mesh */}
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: [
+                    "url('/Abstract%20Gradient.jpg')",
+                    "linear-gradient(125deg, rgba(252,95,43,0.55) 0%, rgba(255,140,90,0.25) 35%, rgba(120,60,180,0.35) 70%, rgba(40,20,60,0.5) 100%)",
+                  ].join(", "),
+                  backgroundSize: "cover, cover",
+                  backgroundPosition: "center",
+                  backgroundBlendMode: "soft-light, normal",
+                }}
+                aria-hidden
+              />
+              <div
+                className="pointer-events-none absolute -left-1/4 top-[-40%] h-[140%] w-[70%] rotate-12 opacity-60"
+                style={{
+                  background:
+                    "radial-gradient(ellipse at center, rgba(255,220,160,0.45) 0%, transparent 65%)",
+                }}
+                aria-hidden
+              />
+              <div
+                className="pointer-events-none absolute -right-1/5 bottom-[-50%] h-[120%] w-[55%] opacity-50"
+                style={{
+                  background:
+                    "radial-gradient(ellipse at center, rgba(180,120,255,0.4) 0%, transparent 70%)",
+                }}
+                aria-hidden
+              />
+
+              {/* Spector glass panel */}
+              <div className="relative m-3 rounded-[18px] border border-white/25 bg-white/12 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-xl supports-[backdrop-filter]:bg-white/10">
+                <div
+                  className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/70 to-transparent"
+                  aria-hidden
+                />
+                <div className="relative flex flex-wrap items-start gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/30 bg-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] backdrop-blur-md">
+                    <ShieldCheck className="h-5 w-5 text-white" strokeWidth={1.75} />
+                  </div>
+                  <div className="min-w-0 flex-1 text-white">
+                    <p className="font-sans text-[15px] font-semibold tracking-[-0.02em] drop-shadow-sm">
+                      Channel verification pending
+                    </p>
+                    <p className="mt-1.5 max-w-xl text-[13px] leading-relaxed text-white/80">
+                      Admins review ownership before engagement counts toward revenue. Dashboard
+                      tools stay available while verification is pending.
+                    </p>
+                  </div>
+                  <a
+                    href={session.channelUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/30 bg-white/15 px-4 py-2 text-[13px] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-md transition hover:bg-white/25"
+                  >
+                    YouTube
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                  </a>
                 </div>
-                <a
-                  href={session.channelUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex shrink-0 items-center gap-1 text-[13px] font-medium text-white hover:underline"
-                >
-                  YouTube
-                  <ArrowUpRight className="h-3.5 w-3.5" />
-                </a>
               </div>
             </div>
           ) : null}
@@ -615,32 +810,16 @@ export default function CreatorDashboard() {
               onOpenSessions={() => setNav("sessions")}
             />
           ) : null}
-          {nav === "earnings" ? <EarningsPanel /> : null}
           {nav === "sessions" ? <SessionsPanel period={period} /> : null}
           {nav === "settlements" ? <SettlementsPanel /> : null}
           {nav === "leaderboard" ? (
-            <LeaderboardPanel
-              session={session}
-              onOpenChannel={() => setNav("channel")}
-            />
+            <LeaderboardPanel session={session} />
           ) : null}
           {nav === "channel" || nav === "settings" ? (
             <ChannelPanel
               session={session}
-              onSignOut={signOut}
+              onSignOut={requestSignOut}
               onOpenLeaderboard={() => setNav("leaderboard")}
-              onGameUpdated={(game) =>
-                setSession((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        gameId: game.id,
-                        gameSlug: game.slug,
-                        gameName: game.name,
-                      }
-                    : prev,
-                )
-              }
             />
           ) : null}
         </main>
@@ -728,7 +907,7 @@ function OverviewGrid({
           ) : null}
           {!isLoading && !sessionsLoading && recent.length === 0 ? (
             <p className="text-[13px] text-muted-foreground">
-              No Fanaye browser views yet for this period.
+              No Vero browser views yet for this period.
             </p>
           ) : null}
           {recent.map((item) => (
@@ -754,7 +933,7 @@ function OverviewGrid({
 
       <div className="flex flex-col gap-5 md:col-span-2 lg:col-span-6">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-          <StatMini label="Sessions" value={String(views)} hint={`Fanaye browser · ${periodLabel}`} />
+          <StatMini label="Sessions" value={String(views)} hint={`Vero browser · ${periodLabel}`} />
           <StatMini label="Unique viewers" value={String(uniqueViewers)} hint="Distinct accounts" />
           <StatMini label="Total watch" value={formatWatch(totalWatch)} hint="Sum of session watch time" />
           <StatMini label="Avg watch" value={formatWatch(avgWatch)} hint="Per session" />
@@ -986,37 +1165,15 @@ function OverviewGrid({
 
         <section className={CARD}>
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Earnings
-          </p>
-          <p className="mt-2 text-[15px] font-semibold tracking-[-0.02em]">Coming later</p>
-          <p className="mt-1 text-[12px] text-muted-foreground">
-            Payouts and settlements are not live yet. Engagement analytics above are real.
-          </p>
-        </section>
-
-        <section className={CARD}>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Data source
           </p>
           <p className="mt-2 text-[13px] leading-normal text-muted-foreground">
-            Sessions, watch time, viewers, and game plays are first-party signals from the Fanaye
+            Sessions, watch time, viewers, and game plays are first-party signals from the Vero
             browser — not YouTube Studio.
           </p>
         </section>
       </div>
     </div>
-  );
-}
-
-function EarningsPanel() {
-  return (
-    <section className={CARD}>
-      <h2 className="text-[16px] font-semibold tracking-[-0.02em]">Earnings</h2>
-      <p className="mt-2 max-w-xl text-[13.5px] text-muted-foreground">
-        Creator payouts are not live yet. Use Sessions and Leaderboard for real engagement data from
-        the Fanaye browser.
-      </p>
-    </section>
   );
 }
 
@@ -1049,7 +1206,7 @@ function SessionsPanel({ period }: { period: Period }) {
       <section className={CARD}>
         <h2 className="text-[15px] font-semibold tracking-[-0.02em]">Sessions</h2>
         <p className="mt-2 text-[13.5px] text-muted-foreground">
-          No viewing sessions from the Fanaye browser in this period yet.
+          No viewing sessions from the Vero browser in this period yet.
         </p>
       </section>
     );
@@ -1105,21 +1262,14 @@ function ChannelPanel({
   session,
   onSignOut,
   onOpenLeaderboard,
-  onGameUpdated,
 }: {
   session: CreatorSession;
   onSignOut: () => void;
   onOpenLeaderboard: () => void;
-  onGameUpdated: (game: { id: number; slug: string; name: string }) => void;
 }) {
-  const { data: games = [] } = useListGamesQuery();
-  const [setChannelGame, { isLoading: savingGame }] = useSetChannelGameMutation();
-  const channelId = session.channelId;
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
   const selectedSlug = session.gameSlug || "bubble";
-  const selectedName =
-    session.gameName ||
-    games.find((g) => g.slug === selectedSlug)?.name ||
-    selectedSlug;
+  const selectedName = session.gameName || selectedSlug;
 
   const fields = [
     ["Channel name", session.channelName],
@@ -1130,28 +1280,23 @@ function ChannelPanel({
     ["Email", session.email],
   ] as const;
 
-  async function onPickGame(slug: string) {
-    if (!channelId || slug === selectedSlug) return;
-    try {
-      const updated = await setChannelGame({ channelId, gameSlug: slug }).unwrap();
-      if (updated.game) onGameUpdated(updated.game);
-    } catch {
-      /* keep current selection */
-    }
-  }
-
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
       <section className={`${CARD} lg:col-span-7`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-[16px] font-semibold tracking-[-0.02em]">Channel & account</h2>
           <div className="flex flex-wrap gap-2">
-            <Link
-              href="/change-password"
-              className={`inline-flex items-center gap-2 rounded-full bg-card px-4 py-2 text-[13px] font-medium text-muted-foreground ${LINE} hover:text-foreground`}
+            <button
+              type="button"
+              onClick={() => setShowPasswordForm((v) => !v)}
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-medium ${LINE} ${
+                showPasswordForm
+                  ? "bg-[#FFF1E9] text-foreground"
+                  : "bg-card text-muted-foreground hover:text-foreground"
+              }`}
             >
               Change password
-            </Link>
+            </button>
             <button
               type="button"
               onClick={onSignOut}
@@ -1172,47 +1317,40 @@ function ChannelPanel({
             </div>
           ))}
         </div>
+
+        {showPasswordForm ? (
+          <div className={`mt-5 rounded-xl bg-card p-4 ${LINE}`}>
+            <h3 className="text-[15px] font-semibold tracking-[-0.02em]">Change password</h3>
+            <p className="mt-1 text-[13px] text-muted-foreground">
+              Enter your current password, then choose a new one.
+            </p>
+            <DashboardChangePasswordForm
+              onCancel={() => setShowPasswordForm(false)}
+              onSuccess={() => setShowPasswordForm(false)}
+            />
+          </div>
+        ) : null}
       </section>
 
       <section className={`${CARD} lg:col-span-5`}>
         <h2 className="text-[16px] font-semibold tracking-[-0.02em]">Channel mini-game</h2>
         <p className="mt-2 text-[13px] text-muted-foreground">
-          Viewers play this game in the browser sidebar while watching your videos. You can switch anytime.
+          Viewers play this game in the browser sidebar while watching your videos. Locked after onboarding.
         </p>
-        <div className="mt-4 flex flex-col gap-2">
-          {games.map((game) => {
-            const active = selectedSlug === game.slug;
-            return (
-              <button
-                key={game.slug}
-                type="button"
-                disabled={!channelId || savingGame}
-                onClick={() => void onPickGame(game.slug)}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors ${LINE} ${
-                  active
-                    ? "bg-[#FFF1E9] text-foreground"
-                    : "bg-card text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <img
-                  src={gameLogoUrl(game.slug)}
-                  alt=""
-                  width={36}
-                  height={36}
-                  className="h-9 w-9 shrink-0 rounded-lg"
-                />
-                <div className="min-w-0">
-                  <p className="text-[14px] font-semibold">{game.name}</p>
-                  <p className="mt-0.5 text-[12px] text-muted-foreground">
-                    {active ? "Selected for your channel" : "Click to switch"}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-          {games.length === 0 ? (
-            <p className="text-[13px] text-muted-foreground">Loading game catalog…</p>
-          ) : null}
+        <div className={`mt-4 flex items-center gap-3 rounded-xl bg-[#FFF1E9] px-4 py-3 ${LINE}`}>
+          <img
+            src={gameLogoUrl(selectedSlug)}
+            alt=""
+            width={36}
+            height={36}
+            className="h-9 w-9 shrink-0 rounded-lg"
+          />
+          <div className="min-w-0">
+            <p className="text-[14px] font-semibold">{selectedName}</p>
+            <p className="mt-0.5 text-[12px] text-muted-foreground">
+              Selected for your channel · cannot be changed
+            </p>
+          </div>
         </div>
         <button
           type="button"
@@ -1227,35 +1365,113 @@ function ChannelPanel({
   );
 }
 
+function DashboardChangePasswordForm({
+  onCancel,
+  onSuccess,
+}: {
+  onCancel: () => void;
+  onSuccess: () => void;
+}) {
+  const [oldPassword, setOldPassword] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+  const [changePassword, { isLoading }] = useChangePasswordMutation();
+
+  async function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setError(null);
+    if (!oldPassword.trim()) {
+      setError("Enter your current password");
+      return;
+    }
+    if (!isPasswordAcceptable(password)) {
+      setError("Use at least 8 characters with upper, lower, and a number");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+    try {
+      await changePassword({ oldPassword, password }).unwrap();
+      setDone(true);
+      setOldPassword("");
+      setPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      setError(parseApiError(err, "Could not change password"));
+    }
+  }
+
+  if (done) {
+    return (
+      <div className="mt-4 space-y-4">
+        <p className="rounded-[15px] border border-border bg-[#FFF1E9] px-4 py-3 text-[13px] text-foreground">
+          Password updated successfully.
+        </p>
+        <Button type="button" className="w-full sm:w-auto" onClick={onSuccess}>
+          Done
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="mt-4 space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="dash-old-password">Current password</Label>
+        <Input
+          id="dash-old-password"
+          type="password"
+          value={oldPassword}
+          onChange={(e) => setOldPassword(e.target.value)}
+          className="h-11 rounded-[15px]"
+          autoComplete="current-password"
+          required
+        />
+      </div>
+      <PasswordFields
+        password={password}
+        confirmPassword={confirmPassword}
+        onPasswordChange={setPassword}
+        onConfirmChange={setConfirmPassword}
+        disabled={isLoading}
+      />
+      {error ? (
+        <p className="rounded-[15px] border border-border bg-muted px-4 py-3 text-[13px]">
+          {error}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap gap-3">
+        <Button type="button" variant="outline" disabled={isLoading} onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? "Updating…" : "Update password"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 function LeaderboardPanel({
   session,
-  onOpenChannel,
 }: {
   session: CreatorSession;
-  onOpenChannel: () => void;
 }) {
-  const { data: games = [] } = useListGamesQuery();
   const channelId = session.channelId;
-  const channelGameSlug = session.gameSlug || "bubble";
-  const [viewSlug, setViewSlug] = useState(channelGameSlug);
-
-  useEffect(() => {
-    setViewSlug(channelGameSlug);
-  }, [channelGameSlug]);
-
-  const viewGame =
-    games.find((g) => g.slug === viewSlug) ||
-    games.find((g) => g.slug === channelGameSlug);
-  const gameName = viewGame?.name || session.gameName || viewSlug;
-  const isChannelGame = viewSlug === channelGameSlug;
+  const gameSlug = session.gameSlug || "bubble";
+  const gameName = session.gameName || gameSlug;
 
   const { data: channelLb, isFetching: channelLoading } = useGetChannelLeaderboardQuery(
-    { channelId: channelId!, limit: 25, gameSlug: viewSlug },
-    { skip: !channelId || !viewSlug },
+    { channelId: channelId!, limit: 25, gameSlug },
+    { skip: !channelId || !gameSlug },
   );
   const { data: gameLb, isFetching: gameLoading } = useGetGameLeaderboardQuery(
-    { slug: viewSlug, limit: 10 },
-    { skip: !viewSlug },
+    { slug: gameSlug, limit: 10 },
+    { skip: !gameSlug },
   );
 
   const leaders = channelLb?.entries ?? [];
@@ -1270,7 +1486,7 @@ function LeaderboardPanel({
             <p className="text-[13px] text-muted-foreground">Daily standings · UTC</p>
             <h2 className="mt-1 flex items-center gap-3 text-[22px] font-semibold tracking-[-0.03em]">
               <img
-                src={gameLogoUrl(viewSlug)}
+                src={gameLogoUrl(gameSlug)}
                 alt=""
                 width={36}
                 height={36}
@@ -1282,57 +1498,11 @@ function LeaderboardPanel({
               Channel: {session.channelName || "—"} · Day {channelLb?.day ?? gameLb?.day ?? "—"}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <span className={`inline-flex items-center gap-2 rounded-full bg-[#FFF1E9] px-4 py-2 text-[13px] font-medium text-sunrise-coral ${LINE}`}>
-              <Trophy className="h-3.5 w-3.5" strokeWidth={1.75} />
-              Channel game · {session.gameName || channelGameSlug}
-            </span>
-            <button
-              type="button"
-              onClick={onOpenChannel}
-              className={`inline-flex items-center gap-2 rounded-full bg-card px-4 py-2 text-[13px] font-medium text-muted-foreground ${LINE} hover:text-foreground`}
-            >
-              Change channel game
-            </button>
-          </div>
+          <span className={`inline-flex items-center gap-2 rounded-full bg-[#FFF1E9] px-4 py-2 text-[13px] font-medium text-sunrise-coral ${LINE}`}>
+            <Trophy className="h-3.5 w-3.5" strokeWidth={1.75} />
+            Channel game · {gameName} · locked
+          </span>
         </div>
-        <div className="mt-5 flex flex-wrap gap-2">
-          {games.map((game) => {
-            const active = viewSlug === game.slug;
-            const isDefault = game.slug === channelGameSlug;
-            return (
-              <button
-                key={game.slug}
-                type="button"
-                onClick={() => setViewSlug(game.slug)}
-                className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-medium ${LINE} ${
-                  active
-                    ? "bg-[#FFF1E9] text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <img
-                  src={gameLogoUrl(game.slug)}
-                  alt=""
-                  width={20}
-                  height={20}
-                  className="h-5 w-5 rounded-md"
-                />
-                {game.name}
-                {isDefault ? " · live" : ""}
-              </button>
-            );
-          })}
-        </div>
-        {!isChannelGame ? (
-          <p className="mt-3 text-[12px] text-muted-foreground">
-            Viewing {gameName} history on your channel. Viewers currently play{" "}
-            <span className="font-medium text-foreground">
-              {session.gameName || channelGameSlug}
-            </span>{" "}
-            in the browser sidebar.
-          </p>
-        ) : null}
       </section>
 
       <section className={`${CARD} lg:col-span-4`}>
@@ -1363,8 +1533,7 @@ function LeaderboardPanel({
               for your channel today.
             </p>
             <p className="text-[12px] text-muted-foreground">
-              Open another game tab above if viewers played a different title, or watch your channel
-              in the Fanaye browser with VPN on and finish a run.
+              Watch your channel in the Vero browser with VPN on and finish a run to post scores.
             </p>
           </div>
         )}

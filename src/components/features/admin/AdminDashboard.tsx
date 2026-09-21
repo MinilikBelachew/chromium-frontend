@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { useRouter, Link } from "@/i18n/navigation";
 import {
   Clapperboard,
   ExternalLink,
+  Home,
   LogOut,
   Plus,
   Search,
@@ -13,12 +14,14 @@ import {
 } from "lucide-react";
 import BrandLogo from "@/components/common/BrandLogo";
 import ThemeToggle from "@/components/common/ThemeToggle";
+import SignOutConfirmDialog from "@/components/features/auth/SignOutConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useGetOnboardingMeQuery } from "@/context/services/authApi";
 import {
   useCreateCreatorMutation,
+  useGetAdminOverviewQuery,
   useListCreatorsQuery,
   useListUsersByRoleQuery,
   useUpdateChannelVerificationMutation,
@@ -30,11 +33,24 @@ import {
   type AuthUser,
 } from "@/lib/auth-routing";
 import { parseApiError } from "@/lib/auth-errors";
-import { clearAuthTokens, hasAuthToken } from "@/lib/auth-token";
+import { hasAuthToken } from "@/lib/auth-token";
+import { clearClientAuthSession } from "@/lib/auth-session";
+import {
+  formatAmharicChannelHandle,
+  formatAmharicChannelName,
+} from "@/lib/channel-display";
 import { parseYouTubeChannel } from "@/lib/creator-session";
+import { glassAvatar, notionistsAvatar, youtubeChannelLogo } from "@/lib/dicebear";
 import { normalizePhone } from "@/lib/user-session";
+import { useSignOut } from "@/hooks/useSignOut";
+import {
+  AdminActivityAreaChart,
+  AdminGamesBarChart,
+  AdminWeeklyBarChart,
+} from "@/components/features/admin/AdminOverviewCharts";
+import AdminAllGamesLeaderboard from "@/components/features/admin/AdminAllGamesLeaderboard";
 
-type TabId = "creators" | "viewers";
+type TabId = "overview" | "creators" | "viewers";
 
 const LINE = "border border-border";
 const CARD = `rounded-2xl bg-card ${LINE} p-5`;
@@ -60,14 +76,21 @@ function creatorDisplayName(row: AdminCreatorRow) {
 export default function AdminDashboard() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
-  const [tab, setTab] = useState<TabId>("creators");
+  const [tab, setTab] = useState<TabId>("overview");
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const {
+    confirmOpen,
+    signingOut,
+    requestSignOut,
+    cancelSignOut,
+    confirmSignOut,
+  } = useSignOut();
 
   useEffect(() => {
     if (!hasAuthToken()) {
-      router.replace("/login");
+      router.replace("/sign-in");
 
       return;
     }
@@ -75,7 +98,7 @@ export default function AdminDashboard() {
   }, [router]);
 
   const { data: me, isError: meError, isLoading: meLoading } =
-    useGetOnboardingMeQuery(undefined, { skip: !ready });
+    useGetOnboardingMeQuery(undefined, { skip: !ready || signingOut });
 
   useEffect(() => {
     if (!me) return;
@@ -86,8 +109,8 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (meError) {
-      clearAuthTokens();
-      router.replace("/login");
+      clearClientAuthSession();
+      router.replace("/sign-in");
 
     }
   }, [meError, router]);
@@ -95,25 +118,51 @@ export default function AdminDashboard() {
   const adminReady = Boolean(ready && me && isAdminRole(me.user.role));
 
   const creatorsQuery = useListCreatorsQuery(
-    { page, limit: 20 },
-    { skip: !adminReady || tab !== "creators" },
+    { page: tab === "overview" ? 1 : page, limit: tab === "overview" ? 100 : 20 },
+    { skip: !adminReady || (tab !== "creators" && tab !== "overview") },
   );
 
   const viewersQuery = useListUsersByRoleQuery(
-    { page, limit: 20, roleId: ROLE_VIEWER },
-    { skip: !adminReady || tab !== "viewers" },
+    {
+      page: tab === "overview" ? 1 : page,
+      limit: tab === "overview" ? 100 : 20,
+      roleId: ROLE_VIEWER,
+    },
+    { skip: !adminReady || (tab !== "viewers" && tab !== "overview") },
+  );
+
+  const overviewQuery = useGetAdminOverviewQuery(
+    { days: 90 },
+    { skip: !adminReady || tab !== "overview" },
   );
 
   const isFetching =
-    tab === "creators" ? creatorsQuery.isFetching : viewersQuery.isFetching;
+    tab === "creators"
+      ? creatorsQuery.isFetching
+      : tab === "viewers"
+        ? viewersQuery.isFetching
+        : creatorsQuery.isFetching || viewersQuery.isFetching;
   const isError =
-    tab === "creators" ? creatorsQuery.isError : viewersQuery.isError;
+    tab === "creators"
+      ? creatorsQuery.isError
+      : tab === "viewers"
+        ? viewersQuery.isError
+        : creatorsQuery.isError || viewersQuery.isError;
   const refetch =
-    tab === "creators" ? creatorsQuery.refetch : viewersQuery.refetch;
+    tab === "creators"
+      ? creatorsQuery.refetch
+      : tab === "viewers"
+        ? viewersQuery.refetch
+        : () => {
+            void creatorsQuery.refetch();
+            void viewersQuery.refetch();
+          };
   const hasNextPage =
     tab === "creators"
       ? creatorsQuery.data?.hasNextPage
-      : viewersQuery.data?.hasNextPage;
+      : tab === "viewers"
+        ? viewersQuery.data?.hasNextPage
+        : false;
 
   const creators = useMemo(() => {
     const rows = creatorsQuery.data?.data ?? [];
@@ -166,28 +215,62 @@ export default function AdminDashboard() {
     setQuery("");
   }, [tab]);
 
+  if (signingOut) {
+    return (
+      <main className="grid min-h-svh place-items-center bg-background font-sans text-[15px] text-muted-foreground">
+        Signing out…
+      </main>
+    );
+  }
+
   if (!ready || meLoading || !me || !isAdminRole(me.user.role)) {
     return (
-      <main className="grid min-h-svh place-items-center bg-background font-display text-[15px] text-muted-foreground">
+      <main className="grid min-h-svh place-items-center bg-background font-sans text-[15px] text-muted-foreground">
         Loading admin…
       </main>
     );
   }
 
-  function signOut() {
-    clearAuthTokens();
-    router.push("/login");
-
-  }
-
   const adminName = displayName(me.user);
   const shownCount = tab === "creators" ? creators.length : viewers.length;
+  const overviewCreators = creatorsQuery.data?.data ?? [];
+  const overviewViewers = viewersQuery.data?.data ?? [];
+  const overview = overviewQuery.data;
+  const pendingChannels =
+    overview?.totals.pendingChannels ??
+    overviewCreators.reduce(
+      (count, row) =>
+        count +
+        row.channels.filter((ch) => ch.verificationStatus === "PENDING").length,
+      0,
+    );
+  const verifiedChannels =
+    overview?.totals.verifiedChannels ??
+    overviewCreators.reduce(
+      (count, row) =>
+        count +
+        row.channels.filter((ch) => ch.verificationStatus === "VERIFIED").length,
+      0,
+    );
+  const activeCreators = overviewCreators.filter(
+    (row) => row.status === "active",
+  ).length;
+  const overviewLoading =
+    overviewQuery.isFetching || creatorsQuery.isFetching || viewersQuery.isFetching;
+  const overviewError = overviewQuery.isError && creatorsQuery.isError;
 
   return (
-    <div className="flex min-h-svh bg-background font-display text-foreground">
+    <div className="flex min-h-svh bg-background font-sans text-foreground">
       <aside className="sticky top-0 hidden h-svh w-[72px] shrink-0 flex-col items-center gap-3 border-r border-border bg-sidebar px-3 py-6 sm:flex">
         <BrandLogo size={40} />
         <div className="flex flex-1 flex-col items-center gap-2">
+          <RailButton
+            active={tab === "overview"}
+            label="Overview"
+            onClick={() => setTab("overview")}
+          >
+            <Home className="h-5 w-5" strokeWidth={1.75} />
+          </RailButton>
           <RailButton
             active={tab === "creators"}
             label="Creators"
@@ -206,13 +289,22 @@ export default function AdminDashboard() {
         <ThemeToggle />
         <button
           type="button"
-          onClick={signOut}
+          onClick={requestSignOut}
           className="grid size-10 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
           title="Sign out"
         >
           <LogOut className="h-5 w-5" strokeWidth={1.75} />
         </button>
       </aside>
+
+      <SignOutConfirmDialog
+        open={confirmOpen}
+        busy={signingOut}
+        onCancel={cancelSignOut}
+        onConfirm={() => {
+          void confirmSignOut();
+        }}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-6 py-5 sm:px-8">
@@ -221,7 +313,11 @@ export default function AdminDashboard() {
               Super admin
             </p>
             <h1 className="text-onboarding-title mt-1 text-[28px] sm:text-[32px]">
-              {tab === "creators" ? "Creators" : "Viewers"}
+              {tab === "overview"
+                ? "Overview"
+                : tab === "creators"
+                  ? "Creators"
+                  : "Viewers"}
             </h1>
           </div>
           <div className="flex items-center gap-3">
@@ -243,6 +339,9 @@ export default function AdminDashboard() {
         </header>
 
         <div className="flex flex-wrap gap-2 border-b border-border px-6 py-3 sm:hidden">
+          <TabChip active={tab === "overview"} onClick={() => setTab("overview")}>
+            Overview
+          </TabChip>
           <TabChip active={tab === "creators"} onClick={() => setTab("creators")}>
             Creators
           </TabChip>
@@ -252,68 +351,362 @@ export default function AdminDashboard() {
         </div>
 
         <main className="flex-1 space-y-6 px-6 py-6 sm:px-8">
-          {tab === "creators" && showCreate ? (
-            <CreateCreatorPanel
-              onCreated={() => {
-                setShowCreate(false);
-                setPage(1);
+          {tab === "overview" ? (
+            <OverviewPanel
+              loading={overviewLoading}
+              error={overviewError}
+              onRetry={() => {
+                void overviewQuery.refetch();
                 void creatorsQuery.refetch();
+                void viewersQuery.refetch();
               }}
-              onCancel={() => setShowCreate(false)}
-            />
-          ) : null}
-
-          <div className={CARD}>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="relative w-full max-w-md">
-                <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ash-gray" />
-                <Input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={`Search ${tab}…`}
-                  className="h-11 rounded-full border-border bg-background pl-10 text-[15px] shadow-none"
-                />
-              </div>
-              <p className="text-[13px] tracking-[-0.02em] text-zinc-gray">
-                {isFetching
-                  ? "Loading…"
-                  : `${shownCount} shown${hasNextPage ? " · more pages available" : ""}`}
-              </p>
-            </div>
-          </div>
-
-          {isError ? (
-            <div className={`${CARD} text-[15px] text-carbon-black`}>
-              Could not load {tab}.{" "}
-              <button
-                type="button"
-                className="underline underline-offset-4"
-                onClick={() => refetch()}
-              >
-                Retry
-              </button>
-            </div>
-          ) : tab === "creators" ? (
-            <CreatorsTable
-              rows={creators}
-              isFetching={isFetching}
-              page={page}
-              hasNextPage={Boolean(hasNextPage)}
-              onPrev={() => setPage((p) => Math.max(1, p - 1))}
-              onNext={() => setPage((p) => p + 1)}
+              creatorCount={overview?.totals.creators ?? overviewCreators.length}
+              viewerCount={overview?.totals.viewers ?? overviewViewers.length}
+              activeCreators={activeCreators}
+              pendingChannels={pendingChannels}
+              verifiedChannels={verifiedChannels}
+              sessions={overview?.totals.sessions ?? 0}
+              plays={overview?.totals.plays ?? 0}
+              activity={overview?.activity ?? []}
+              weeklyPlays={overview?.weeklyPlays ?? []}
+              gameStats={overview?.gameStats ?? []}
+              recentCreators={overviewCreators.slice(0, 5)}
+              recentViewers={overviewViewers.slice(0, 5)}
+              onOpenCreators={() => setTab("creators")}
+              onOpenViewers={() => setTab("viewers")}
+              hasMoreCreators={Boolean(creatorsQuery.data?.hasNextPage)}
+              hasMoreViewers={Boolean(viewersQuery.data?.hasNextPage)}
             />
           ) : (
-            <ViewersTable
-              rows={viewers}
-              isFetching={isFetching}
-              page={page}
-              hasNextPage={Boolean(hasNextPage)}
-              onPrev={() => setPage((p) => Math.max(1, p - 1))}
-              onNext={() => setPage((p) => p + 1)}
-            />
+            <>
+              {tab === "creators" && showCreate ? (
+                <CreateCreatorPanel
+                  onCreated={() => {
+                    setShowCreate(false);
+                    setPage(1);
+                    void creatorsQuery.refetch();
+                  }}
+                  onCancel={() => setShowCreate(false)}
+                />
+              ) : null}
+
+              <div className={CARD}>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="relative w-full max-w-md">
+                    <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ash-gray" />
+                    <Input
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder={`Search ${tab}…`}
+                      className="h-11 rounded-full border-border bg-background pl-10 text-[15px] shadow-none"
+                    />
+                  </div>
+                  <p className="text-[13px] tracking-[-0.02em] text-zinc-gray">
+                    {isFetching
+                      ? "Loading…"
+                      : `${shownCount} shown${hasNextPage ? " · more pages available" : ""}`}
+                  </p>
+                </div>
+              </div>
+
+              {isError ? (
+                <div className={`${CARD} text-[15px] text-carbon-black`}>
+                  Could not load {tab}.{" "}
+                  <button
+                    type="button"
+                    className="underline underline-offset-4"
+                    onClick={() => refetch()}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : tab === "creators" ? (
+                <CreatorsTable
+                  rows={creators}
+                  isFetching={isFetching}
+                  page={page}
+                  hasNextPage={Boolean(hasNextPage)}
+                  onPrev={() => setPage((p) => Math.max(1, p - 1))}
+                  onNext={() => setPage((p) => p + 1)}
+                />
+              ) : (
+                <ViewersTable
+                  rows={viewers}
+                  isFetching={isFetching}
+                  page={page}
+                  hasNextPage={Boolean(hasNextPage)}
+                  onPrev={() => setPage((p) => Math.max(1, p - 1))}
+                  onNext={() => setPage((p) => p + 1)}
+                />
+              )}
+            </>
           )}
         </main>
       </div>
+    </div>
+  );
+}
+
+function OverviewPanel({
+  loading,
+  error,
+  onRetry,
+  creatorCount,
+  viewerCount,
+  activeCreators,
+  pendingChannels,
+  verifiedChannels,
+  sessions,
+  plays,
+  activity,
+  weeklyPlays,
+  gameStats,
+  recentCreators,
+  recentViewers,
+  onOpenCreators,
+  onOpenViewers,
+  hasMoreCreators,
+  hasMoreViewers,
+}: {
+  loading: boolean;
+  error: boolean;
+  onRetry: () => void;
+  creatorCount: number;
+  viewerCount: number;
+  activeCreators: number;
+  pendingChannels: number;
+  verifiedChannels: number;
+  sessions: number;
+  plays: number;
+  activity: Array<{ date: string; sessions: number; plays: number }>;
+  weeklyPlays: Array<{ date: string; plays: number; highScore: number }>;
+  gameStats: Array<{
+    slug: string;
+    name: string;
+    plays: number;
+    avgScore: number;
+  }>;
+  recentCreators: AdminCreatorRow[];
+  recentViewers: AuthUser[];
+  onOpenCreators: () => void;
+  onOpenViewers: () => void;
+  hasMoreCreators: boolean;
+  hasMoreViewers: boolean;
+}) {
+  if (error) {
+    return (
+      <div className={`${CARD} text-[15px] text-carbon-black`}>
+        Could not load overview.{" "}
+        <button type="button" className="underline underline-offset-4" onClick={onRetry}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        <StatCard
+          label="Creators"
+          value={loading ? "…" : String(creatorCount)}
+          hint={hasMoreCreators ? "Platform total" : "On platform"}
+        />
+        <StatCard
+          label="Active creators"
+          value={loading ? "…" : String(activeCreators)}
+          hint="Status = active"
+        />
+        <StatCard
+          label="Viewers"
+          value={loading ? "…" : String(viewerCount)}
+          hint={hasMoreViewers ? "Platform total" : "On platform"}
+        />
+        <StatCard
+          label="Pending channels"
+          value={loading ? "…" : String(pendingChannels)}
+          hint={`${verifiedChannels} verified`}
+        />
+        <StatCard
+          label="Watch sessions"
+          value={loading ? "…" : String(sessions)}
+          hint="All time"
+        />
+        <StatCard
+          label="Game plays"
+          value={loading ? "…" : String(plays)}
+          hint="All time scores"
+        />
+      </div>
+
+      <AdminActivityAreaChart data={activity} />
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <AdminWeeklyBarChart data={weeklyPlays} />
+        <AdminGamesBarChart data={gameStats} />
+      </div>
+
+      <AdminAllGamesLeaderboard />
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className={CARD}>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-[16px] font-semibold tracking-[-0.02em]">Recent creators</h2>
+            <button
+              type="button"
+              onClick={onOpenCreators}
+              className="text-[13px] font-medium text-sunrise-coral underline-offset-4 hover:underline"
+            >
+              View all
+            </button>
+          </div>
+          <ul className="mt-4 space-y-3">
+            {loading && recentCreators.length === 0 ? (
+              <li className="text-[13px] text-muted-foreground">Loading…</li>
+            ) : null}
+            {!loading && recentCreators.length === 0 ? (
+              <li className="text-[13px] text-muted-foreground">No creators yet.</li>
+            ) : null}
+            {recentCreators.map((row) => {
+              const name = creatorDisplayName(row);
+              const seed = row.user.email || name;
+              return (
+                <li key={row.id}>
+                  <Link
+                    href={`/admin/creators/${row.id}`}
+                    className="flex items-center gap-3 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-sunrise-coral/40"
+                  >
+                    <CreatorAvatar
+                      channels={row.channels}
+                      fallbackSeed={seed}
+                      size={40}
+                      className="size-10 shrink-0 rounded-full bg-muted object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[14px] font-medium hover:underline">
+                        {name}
+                      </p>
+                      <p className="truncate text-[12px] text-muted-foreground">
+                        {row.user.email ?? "—"} · {row.plan}
+                      </p>
+                    </div>
+                    <Badge
+                      tone={row.status === "active" ? "green" : "muted"}
+                      label={row.status}
+                    />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+
+        <section className={CARD}>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-[16px] font-semibold tracking-[-0.02em]">Recent viewers</h2>
+            <button
+              type="button"
+              onClick={onOpenViewers}
+              className="text-[13px] font-medium text-sunrise-coral underline-offset-4 hover:underline"
+            >
+              View all
+            </button>
+          </div>
+          <ul className="mt-4 space-y-3">
+            {loading && recentViewers.length === 0 ? (
+              <li className="text-[13px] text-muted-foreground">Loading…</li>
+            ) : null}
+            {!loading && recentViewers.length === 0 ? (
+              <li className="text-[13px] text-muted-foreground">No viewers yet.</li>
+            ) : null}
+            {recentViewers.map((user) => {
+              const name = displayName(user);
+              const seed = user.email || name;
+              return (
+                <li key={String(user.id)} className="flex items-center gap-3">
+                  <img
+                    src={notionistsAvatar(seed, 72)}
+                    alt=""
+                    width={40}
+                    height={40}
+                    className="size-10 shrink-0 rounded-[10px] bg-muted object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[14px] font-medium">{name}</p>
+                    <p className="truncate text-[12px] text-muted-foreground">
+                      {user.email ?? "—"}
+                    </p>
+                  </div>
+                  <Badge
+                    tone={
+                      (user.status?.name ?? "").toLowerCase() === "active"
+                        ? "green"
+                        : "muted"
+                    }
+                    label={user.status?.name ?? "—"}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function CreatorAvatar({
+  channels,
+  fallbackSeed,
+  size = 36,
+  className,
+}: {
+  channels: AdminCreatorRow["channels"];
+  fallbackSeed: string;
+  size?: number;
+  className?: string;
+}) {
+  const primaryId = channels[0]?.youtubeChannelId ?? "";
+  const yt = youtubeChannelLogo(primaryId, size * 2);
+  const fallback = glassAvatar(fallbackSeed, size * 2);
+  const [src, setSrc] = useState(yt || fallback);
+
+  useEffect(() => {
+    setSrc(yt || fallback);
+  }, [yt, fallback]);
+
+  return (
+    <img
+      src={src}
+      alt=""
+      width={size}
+      height={size}
+      className={className}
+      onError={() => {
+        if (src !== fallback) setSrc(fallback);
+      }}
+    />
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+}) {
+  return (
+    <div className={CARD}>
+      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-zinc-gray">
+        {label}
+      </p>
+      <p className="mt-2 text-[32px] font-semibold tracking-[-0.04em] text-foreground">
+        {value}
+      </p>
+      <p className="mt-1 text-[12px] text-muted-foreground">{hint}</p>
     </div>
   );
 }
@@ -442,7 +835,12 @@ function CreateCreatorPanel({
             />
             {parsed ? (
               <p className="mt-1.5 text-[12px] text-zinc-gray">
-                Detected: {parsed.channelName} · {parsed.youtubeChannelId}
+                Detected: {formatAmharicChannelName(parsed.channelName)} ·{" "}
+                {formatAmharicChannelHandle(
+                  parsed.youtubeChannelId,
+                  parsed.channelName,
+                  parsed.channelUrl,
+                ) || formatAmharicChannelName(parsed.youtubeChannelId)}
               </p>
             ) : null}
           </Field>
@@ -515,19 +913,25 @@ function CreatorsTable({
                   className="border-b border-border align-top last:border-0 hover:bg-fog-gray/40"
                 >
                   <td className="px-5 py-4">
-                    <div className="flex items-start gap-3">
-                      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-carbon-black text-[12px] font-medium text-paper-white">
-                        {initials(name)}
-                      </span>
+                    <Link
+                      href={`/admin/creators/${row.id}`}
+                      className="flex items-start gap-3 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-sunrise-coral/40"
+                    >
+                      <CreatorAvatar
+                        channels={row.channels}
+                        fallbackSeed={row.user.email || name}
+                        size={36}
+                        className="size-9 shrink-0 rounded-full bg-muted object-cover"
+                      />
                       <div>
-                        <p className="font-medium tracking-[-0.02em] text-carbon-black">
+                        <p className="font-medium tracking-[-0.02em] text-carbon-black underline-offset-4 group-hover:underline hover:underline">
                           {name}
                         </p>
                         <p className="mt-0.5 text-[12px] text-zinc-gray">
                           Creator #{row.id} · User #{row.user.id}
                         </p>
                       </div>
-                    </div>
+                    </Link>
                   </td>
                   <td className="px-5 py-4">
                     <p className="text-zinc-gray">{row.user.email ?? "—"}</p>
@@ -610,7 +1014,7 @@ function ChannelAdminRow({
     <div>
       <div className="flex items-center gap-1.5">
         <span className="truncate font-medium text-carbon-black">
-          {channel.channelName}
+          {formatAmharicChannelName(channel.channelName)}
         </span>
         <a
           href={channel.channelUrl}
@@ -623,7 +1027,11 @@ function ChannelAdminRow({
         </a>
       </div>
       <p className="truncate text-[12px] text-ash-gray">
-        {channel.youtubeChannelId}
+        {formatAmharicChannelHandle(
+          channel.youtubeChannelId,
+          channel.channelName,
+          channel.channelUrl,
+        ) || formatAmharicChannelName(channel.youtubeChannelId)}
       </p>
       <div className="mt-1.5 flex flex-wrap items-center gap-2">
         <Badge
@@ -714,6 +1122,8 @@ function ViewersTable({
             {rows.map((user) => {
               const active =
                 (user.status?.name ?? "").toLowerCase() === "active";
+              const name = displayName(user);
+              const seed = user.email || name;
               return (
                 <tr
                   key={String(user.id)}
@@ -721,11 +1131,15 @@ function ViewersTable({
                 >
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-carbon-black text-[12px] font-medium text-paper-white">
-                        {initials(displayName(user))}
-                      </span>
+                      <img
+                        src={notionistsAvatar(seed, 72)}
+                        alt=""
+                        width={36}
+                        height={36}
+                        className="size-9 shrink-0 rounded-[10px] bg-muted object-cover"
+                      />
                       <span className="font-medium tracking-[-0.02em] text-carbon-black">
-                        {displayName(user)}
+                        {name}
                       </span>
                     </div>
                   </td>
@@ -839,15 +1253,6 @@ function Badge({
       {label}
     </span>
   );
-}
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
 }
 
 function RailButton({

@@ -24,6 +24,7 @@ export type CreatorRegisterBody = {
   password: string;
   name: string;
   channelUrl: string;
+  gameSlug: string;
   phone?: string;
   emailVerifiedToken: string;
 };
@@ -35,7 +36,8 @@ export type LoginBody = {
 
 export type GoogleLoginBody = {
   idToken: string;
-  intent?: "viewer" | "creator";
+  /** Google is viewer-only; creators register with email. */
+  intent?: "viewer";
 };
 
 export type SendEmailOtpBody = {
@@ -263,7 +265,7 @@ export const authApi = api.injectEndpoints({
 
     addOnboardingChannel: build.mutation<
       OnboardingChannel,
-      { channelUrl: string; channelName?: string }
+      { channelUrl: string; channelName?: string; gameSlug: string }
     >({
       query: (body) => ({
         url: "/onboarding/channel",
@@ -278,11 +280,14 @@ export const authApi = api.injectEndpoints({
         url: "/auth/logout",
         method: "POST",
       }),
-      async onQueryStarted(_arg, { queryFulfilled }) {
+      async onQueryStarted(_arg, { queryFulfilled, dispatch }) {
         try {
           await queryFulfilled;
+        } catch {
+          /* still clear local session below */
         } finally {
           clearAuthTokens();
+          dispatch(api.util.resetApiState());
         }
       },
     }),

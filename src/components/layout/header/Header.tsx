@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 const navLinks = [
   { href: "#features", label: "Features" },
   { href: "#how-it-works", label: "Product" },
+  { href: "/download", label: "Download" },
   { href: "#pricing", label: "Pricing" },
   { href: "#faq", label: "FAQ" },
 ];
@@ -21,21 +22,31 @@ const Header: React.FC = () => {
       transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between gap-4 px-6 py-6 sm:px-8">
-        <Link href="/" className="inline-flex items-center gap-2.5" aria-label="Fanaye">
+        <Link href="/" className="inline-flex items-center gap-2.5" aria-label="Vero">
           <BrandLogo href={null} size={28} />
-          <span className="text-[15px] font-medium tracking-[-0.02em] text-white">Fanaye</span>
+          <span className="text-[15px] font-medium tracking-[-0.02em] text-white">Vero</span>
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">
-          {navLinks.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="text-[13px] font-medium text-white/70 transition-colors duration-300 hover:text-white"
-            >
-              {link.label}
-            </a>
-          ))}
+          {navLinks.map((link) =>
+            link.href.startsWith("/") ? (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="text-[13px] font-medium text-white/70 transition-colors duration-300 hover:text-white"
+              >
+                {link.label}
+              </Link>
+            ) : (
+              <a
+                key={link.href}
+                href={link.href}
+                className="text-[13px] font-medium text-white/70 transition-colors duration-300 hover:text-white"
+              >
+                {link.label}
+              </a>
+            ),
+          )}
         </nav>
 
         <Link

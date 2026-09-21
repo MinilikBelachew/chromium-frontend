@@ -1,3 +1,5 @@
+import { formatAmharicChannelName } from "@/lib/channel-display";
+
 export type CreatorPlan = "none" | "pro";
 
 export type VerificationStatus = "pending" | "verified" | "rejected";
@@ -19,7 +21,7 @@ export type CreatorSession = {
   gameName: string | null;
 };
 
-const STORAGE_KEY = "fanaye.creator.session";
+const STORAGE_KEY = "vero.creator.session";
 
 export function parseYouTubeChannel(input: string): {
   channelUrl: string;
@@ -45,29 +47,38 @@ export function parseYouTubeChannel(input: string): {
   let channelName = "";
 
   if (parts[0] === "channel" && parts[1]) {
-    youtubeChannelId = parts[1];
-    channelName = parts[1];
+    youtubeChannelId = decodeUriSegment(parts[1]);
+    channelName = youtubeChannelId;
   } else if (parts[0] === "c" && parts[1]) {
-    youtubeChannelId = parts[1];
-    channelName = parts[1].replace(/[-_]/g, " ");
+    youtubeChannelId = decodeUriSegment(parts[1]);
+    channelName = youtubeChannelId.replace(/[-_]/g, " ");
   } else if (parts[0] === "user" && parts[1]) {
-    youtubeChannelId = parts[1];
-    channelName = parts[1];
+    youtubeChannelId = decodeUriSegment(parts[1]);
+    channelName = youtubeChannelId;
   } else if (parts[0]?.startsWith("@")) {
-    youtubeChannelId = parts[0];
-    channelName = parts[0].slice(1);
+    const decoded = decodeUriSegment(parts[0]);
+    youtubeChannelId = decoded.startsWith("@") ? decoded : `@${decoded}`;
+    channelName = youtubeChannelId.slice(1);
   } else if (parts[0]) {
-    youtubeChannelId = parts[0];
-    channelName = parts[0].replace(/^@/, "");
+    youtubeChannelId = decodeUriSegment(parts[0]);
+    channelName = youtubeChannelId.replace(/^@/, "");
   } else {
     return null;
   }
 
   return {
     channelUrl: url.toString(),
-    channelName: channelName || "YouTube Channel",
+    channelName: formatAmharicChannelName(channelName || "YouTube Channel"),
     youtubeChannelId,
   };
+}
+
+function decodeUriSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
 }
 
 export function getCreatorSession(): CreatorSession | null {

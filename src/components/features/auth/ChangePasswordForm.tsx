@@ -33,7 +33,7 @@ export default function ChangePasswordForm() {
 
   useEffect(() => {
     if (!hasAuthToken()) {
-      router.replace("/login");
+      router.replace("/sign-in");
       return;
     }
     void fetchMe()
@@ -42,7 +42,7 @@ export default function ChangePasswordForm() {
         setHomePath(homePathForRole(profile.user.role));
       })
       .catch(() => {
-        router.replace("/login");
+        router.replace("/sign-in");
       });
   }, [fetchMe, router]);
 

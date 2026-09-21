@@ -181,7 +181,7 @@ export default function UserRegisterForm() {
         <>
           Already have an account?{" "}
           <Link
-            href="/login"
+            href="/sign-in"
             className="font-medium text-sky-blue underline-offset-4 hover:underline"
           >
             Sign in
@@ -200,7 +200,7 @@ export default function UserRegisterForm() {
       {step === 0 ? (
         <OnboardingStepPanel
           title="Create your account"
-          subtitle="Register as a viewer to watch creators and play mini-games in Fanaye browser."
+          subtitle="Register as a viewer to watch creators and play mini-games in Vero browser."
         >
           <div className="space-y-5">
             <GoogleAuthBlock

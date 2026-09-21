@@ -10,7 +10,7 @@ export type UserSession = {
   createdAt: string;
 };
 
-const USER_KEY = "fanaye.user.session";
+const USER_KEY = "vero.user.session";
 
 export function normalizePhone(input: string): string | null {
   const digits = input.replace(/[^\d+]/g, "");
@@ -38,7 +38,7 @@ export function saveUserSession(session: UserSession): void {
 
 export function clearUserSession(): void {
   window.localStorage.removeItem(USER_KEY);
-  window.localStorage.removeItem("fanaye.user.wallet");
+  window.localStorage.removeItem("vero.user.wallet");
 }
 
 export function createUserSession(input: {

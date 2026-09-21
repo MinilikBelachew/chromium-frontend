@@ -2,25 +2,25 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, Link } from "@/i18n/navigation";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import OnboardingShell from "@/components/features/onboarding/OnboardingShell";
 import OnboardingStepPanel from "@/components/features/onboarding/OnboardingStepPanel";
-import { GoogleAuthBlock } from "@/components/features/auth/ContinueWithGoogle";
 import PasswordFields from "@/components/features/auth/PasswordFields";
 import OtpInput from "@/components/features/auth/OtpInput";
 import {
   useCreatorRegisterMutation,
-  useGoogleLoginMutation,
   useSendEmailOtpMutation,
   useVerifyEmailOtpMutation,
 } from "@/context/services/authApi";
+import { useListGamesQuery } from "@/context/services/gamesApi";
 import { parseApiError } from "@/lib/auth-errors";
-import { homePathForRole } from "@/lib/auth-routing";
 import { isPasswordAcceptable } from "@/lib/password-strength";
 import { parseYouTubeChannel } from "@/lib/creator-session";
+import { gameLogoUrl } from "@/lib/game-logos";
+import { useChannelAvailability } from "@/hooks/useChannelAvailability";
 
 const fieldClass =
   "h-11 rounded-[15px] border-border bg-card px-4 text-[15px] shadow-none";
@@ -29,6 +29,7 @@ const STEPS = [
   { id: "account", label: "Account", description: "Name, email, password" },
   { id: "verify", label: "Verify", description: "Email code" },
   { id: "channel", label: "Channel", description: "YouTube link" },
+  { id: "game", label: "Game", description: "Channel mini-game" },
   { id: "review", label: "Review", description: "Confirm & create" },
 ];
 
@@ -40,6 +41,7 @@ export default function CreatorSignUpForm() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [channelUrl, setChannelUrl] = useState("");
+  const [gameSlug, setGameSlug] = useState("");
   const [otp, setOtp] = useState("");
   const [challengeToken, setChallengeToken] = useState("");
   const [emailVerifiedToken, setEmailVerifiedToken] = useState("");
@@ -47,13 +49,23 @@ export default function CreatorSignUpForm() {
   const [error, setError] = useState<string | null>(null);
 
   const [register, { isLoading }] = useCreatorRegisterMutation();
-  const [googleLogin, { isLoading: googleLoading }] = useGoogleLoginMutation();
   const [sendOtp, { isLoading: sendingOtp }] = useSendEmailOtpMutation();
   const [verifyOtp, { isLoading: verifyingOtp }] = useVerifyEmailOtpMutation();
+  const { data: games = [], isLoading: gamesLoading } = useListGamesQuery();
 
   const parsedChannel = useMemo(
     () => parseYouTubeChannel(channelUrl),
     [channelUrl],
+  );
+  const {
+    status: channelStatus,
+    message: channelHint,
+    canContinue: channelReady,
+  } = useChannelAvailability(channelUrl);
+
+  const selectedGame = useMemo(
+    () => games.find((g) => g.slug === gameSlug) ?? null,
+    [games, gameSlug],
   );
 
   useEffect(() => {
@@ -61,19 +73,6 @@ export default function CreatorSignUpForm() {
     const timer = window.setTimeout(() => setResendIn((v) => v - 1), 1000);
     return () => window.clearTimeout(timer);
   }, [resendIn]);
-
-  async function continueWithGoogle(idToken: string) {
-    setError(null);
-    try {
-      const result = await googleLogin({
-        idToken,
-        intent: "creator",
-      }).unwrap();
-      router.push(homePathForRole(result.user.role));
-    } catch (err) {
-      setError(parseApiError(err, "Could not continue with Google"));
-    }
-  }
 
   async function requestOtp() {
     const result = await sendOtp({
@@ -137,7 +136,24 @@ export default function CreatorSignUpForm() {
         setError("Enter a valid YouTube channel link");
         return;
       }
+      if (channelStatus === "taken") {
+        setError("This YouTube channel is already registered.");
+        return;
+      }
+      if (channelStatus === "checking" || !channelReady) {
+        setError("Wait until the channel is validated.");
+        return;
+      }
       setStep(3);
+      return;
+    }
+
+    if (step === 3) {
+      if (!gameSlug) {
+        setError("Pick a mini-game for your channel");
+        return;
+      }
+      setStep(4);
     }
   }
 
@@ -148,12 +164,18 @@ export default function CreatorSignUpForm() {
       setStep(1);
       return;
     }
+    if (!gameSlug) {
+      setError("Pick a mini-game for your channel");
+      setStep(3);
+      return;
+    }
     try {
       await register({
         name: name.trim(),
         email: email.trim().toLowerCase(),
         password,
         channelUrl: parsedChannel?.channelUrl ?? channelUrl.trim(),
+        gameSlug,
         emailVerifiedToken,
       }).unwrap();
       router.push("/dashboard");
@@ -182,14 +204,9 @@ export default function CreatorSignUpForm() {
       {step === 0 ? (
         <OnboardingStepPanel
           title="Create your account"
-          subtitle="Start as a creator. You’ll add your YouTube channel next — no subscription required."
+          subtitle="Start as a creator. You’ll add your YouTube channel and mini-game next — no subscription required."
         >
           <div className="space-y-5">
-            <GoogleAuthBlock
-              disabled={isLoading || googleLoading || sendingOtp}
-              onCredential={continueWithGoogle}
-              onError={(message) => setError(message || null)}
-            />
             <form onSubmit={goNext} className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-onboarding-label text-carbon-black">
@@ -231,7 +248,7 @@ export default function CreatorSignUpForm() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={googleLoading || sendingOtp}
+                disabled={sendingOtp}
               >
                 {sendingOtp ? "Sending code…" : "Continue"}
                 <ArrowRight className="size-4" />
@@ -314,15 +331,32 @@ export default function CreatorSignUpForm() {
                 id="channel"
                 type="url"
                 value={channelUrl}
-                onChange={(e) => setChannelUrl(e.target.value)}
+                onChange={(e) => {
+                  setError(null);
+                  setChannelUrl(e.target.value);
+                }}
                 placeholder="https://youtube.com/@yourchannel"
-                className={fieldClass}
+                className={`${fieldClass} ${
+                  channelStatus === "taken" || channelStatus === "invalid"
+                    ? "border-red-400 focus-visible:ring-red-300"
+                    : channelStatus === "available"
+                      ? "border-emerald-400 focus-visible:ring-emerald-300"
+                      : ""
+                }`}
                 required
               />
-              {parsedChannel ? (
-                <p className="text-caption text-zinc-gray">
-                  Detected:{" "}
-                  <span className="text-carbon-black">{parsedChannel.channelName}</span>
+              {channelUrl.trim() ? (
+                <p
+                  className={`text-caption ${
+                    channelStatus === "taken" || channelStatus === "invalid"
+                      ? "text-red-600"
+                      : channelStatus === "available"
+                        ? "text-emerald-700"
+                        : "text-zinc-gray"
+                  }`}
+                >
+                  {channelHint ??
+                    "Use a youtube.com or youtu.be channel URL."}
                 </p>
               ) : (
                 <p className="text-caption text-zinc-gray">
@@ -344,7 +378,11 @@ export default function CreatorSignUpForm() {
                 <ArrowLeft className="size-4" />
                 Back
               </Button>
-              <Button type="submit" className="flex-1">
+              <Button
+                type="submit"
+                className="flex-1"
+                disabled={!channelReady}
+              >
                 Continue
                 <ArrowRight className="size-4" />
               </Button>
@@ -355,6 +393,71 @@ export default function CreatorSignUpForm() {
 
       {step === 3 ? (
         <OnboardingStepPanel
+          title="Choose your channel game"
+          subtitle="Viewers play this mini-game beside your videos in Vero Browser. This choice is locked after signup."
+        >
+          <form onSubmit={goNext} className="space-y-5">
+            {gamesLoading ? (
+              <p className="text-[13px] text-muted-foreground">Loading games…</p>
+            ) : (
+              <div className="flex max-h-[320px] flex-col gap-2 overflow-y-auto pr-1">
+                {games.map((game) => {
+                  const active = gameSlug === game.slug;
+                  return (
+                    <button
+                      key={game.slug}
+                      type="button"
+                      onClick={() => {
+                        setError(null);
+                        setGameSlug(game.slug);
+                      }}
+                      className={`flex items-center gap-3 rounded-[15px] border px-4 py-3 text-left transition-colors ${
+                        active
+                          ? "border-sunrise-coral/40 bg-[#FFF1E9] text-carbon-black"
+                          : "border-mist-gray bg-card text-zinc-gray hover:text-carbon-black"
+                      }`}
+                    >
+                      <img
+                        src={gameLogoUrl(game.slug)}
+                        alt=""
+                        className="h-9 w-9 shrink-0 rounded-lg object-contain"
+                      />
+                      <span className="min-w-0 flex-1 text-[14px] font-medium tracking-[-0.01em]">
+                        {game.name}
+                      </span>
+                      {active ? (
+                        <Check className="h-4 w-4 shrink-0 text-sunrise-coral" strokeWidth={2.25} />
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {error ? <ErrorBox message={error} /> : null}
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setError(null);
+                  setStep(2);
+                }}
+              >
+                <ArrowLeft className="size-4" />
+                Back
+              </Button>
+              <Button type="submit" className="flex-1" disabled={!gameSlug}>
+                Continue
+                <ArrowRight className="size-4" />
+              </Button>
+            </div>
+          </form>
+        </OnboardingStepPanel>
+      ) : null}
+
+      {step === 4 ? (
+        <OnboardingStepPanel
           title="Review & confirm"
           subtitle="Create your creator account. Your channel starts as pending verification."
         >
@@ -364,11 +467,19 @@ export default function CreatorSignUpForm() {
             <ReviewRow label="Email status" value="Verified" />
             <ReviewRow
               label="Channel"
-              value={parsedChannel?.channelName ?? channelUrl}
+              value={
+                parsedChannel?.channelName
+                  ? parsedChannel.channelName
+                  : channelUrl
+              }
             />
             <ReviewRow
               label="Channel URL"
               value={parsedChannel?.channelUrl ?? channelUrl}
+            />
+            <ReviewRow
+              label="Channel game"
+              value={selectedGame?.name ?? gameSlug}
             />
           </div>
           {error ? (
@@ -384,7 +495,7 @@ export default function CreatorSignUpForm() {
               disabled={isLoading}
               onClick={() => {
                 setError(null);
-                setStep(2);
+                setStep(3);
               }}
             >
               <ArrowLeft className="size-4" />
