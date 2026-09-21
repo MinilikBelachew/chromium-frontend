@@ -116,25 +116,9 @@ export type OnboardingCreator = {
   channels: OnboardingChannel[];
 };
 
-export type OnboardingWalletEntry = {
-  id: number;
-  label: string;
-  amount: string;
-  type: string;
-  createdAt: string;
-};
-
-export type OnboardingWallet = {
-  id: number;
-  currency: string;
-  balance: string;
-  entries: OnboardingWalletEntry[];
-};
-
 export type OnboardingProfile = {
   user: AuthUser;
   creator?: OnboardingCreator | null;
-  wallet?: OnboardingWallet | null;
 };
 
 function persistTokens(response: AuthTokens) {
@@ -277,9 +261,16 @@ export const authApi = api.injectEndpoints({
       providesTags: ["Onboarding"],
     }),
 
-    getOnboardingWallet: build.query<OnboardingWallet, void>({
-      query: () => "/onboarding/wallet",
-      providesTags: ["Onboarding"],
+    addOnboardingChannel: build.mutation<
+      OnboardingChannel,
+      { channelUrl: string; channelName?: string }
+    >({
+      query: (body) => ({
+        url: "/onboarding/channel",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Onboarding"],
     }),
 
     logout: build.mutation<void, void>({
@@ -317,6 +308,6 @@ export const {
   useCreatorRegisterMutation,
   useGetOnboardingMeQuery,
   useLazyGetOnboardingMeQuery,
-  useGetOnboardingWalletQuery,
+  useAddOnboardingChannelMutation,
   useLogoutMutation,
 } = authApi;

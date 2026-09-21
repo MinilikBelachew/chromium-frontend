@@ -1,7 +1,7 @@
 import type { OnboardingProfile } from "@/context/services/authApi";
 import { displayName } from "@/lib/auth-routing";
 import type { CreatorSession, VerificationStatus } from "@/lib/creator-session";
-import type { UserSession, WalletEntry, WalletEntryType } from "@/lib/user-session";
+import type { UserSession } from "@/lib/user-session";
 
 function mapVerification(status?: string): VerificationStatus {
   const s = (status ?? "pending").toLowerCase();
@@ -53,23 +53,4 @@ export function profileToUserSession(
       ? String(profile.user.createdAt)
       : new Date().toISOString(),
   };
-}
-
-function mapWalletType(type: string): WalletEntryType {
-  const t = type.toLowerCase();
-  if (t === "debit" || t === "reward" || t === "topup") return t;
-  return "credit";
-}
-
-export function profileToWalletLedger(profile: OnboardingProfile): WalletEntry[] {
-  if (!profile.wallet?.entries) return [];
-  return profile.wallet.entries.map((entry) => ({
-    id: String(entry.id),
-    label: entry.label,
-    amount: Number(entry.amount),
-    type: mapWalletType(entry.type),
-    date: entry.createdAt
-      ? String(entry.createdAt).slice(0, 10)
-      : new Date().toISOString().slice(0, 10),
-  }));
 }

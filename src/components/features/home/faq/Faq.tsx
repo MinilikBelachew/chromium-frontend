@@ -3,19 +3,19 @@ import React from "react";
 const faqs = [
   {
     q: "Does this spoof geography or ad markets?",
-    a: "No. Revenue comes from verified platform engagement and a legitimate ledger — never geo/IP manipulation or artificial impressions.",
+    a: "No. Engagement is measured from the Fanaye browser on verified channels — never geo/IP manipulation or artificial impressions.",
   },
   {
-    q: "How do views become earnings?",
-    a: "Only server-confirmed engagement events that pass integrity checks are eligible. Eligible events write to the revenue ledger for settlement.",
+    q: "What do creators get today?",
+    a: "Verified watch sessions, mini-game play, daily leaderboards, and analytics on who watched and for how long. Payouts are not live yet.",
   },
   {
-    q: "How are balances calculated?",
-    a: "Balances are the sum of immutable ledger entries. We never directly overwrite a creator or wallet balance field.",
+    q: "How do leaderboards work?",
+    a: "Viewers submit scores while watching a verified channel. Boards reset each UTC day per game and per channel.",
   },
   {
     q: "Who can join?",
-    a: "Viewers register with name, email, and phone. Creators add a YouTube channel, complete verification, and activate Pro before earning.",
+    a: "Viewers register with name, email, and phone. Creators add a YouTube channel and wait for verification before engagement counts.",
   },
 ];
 

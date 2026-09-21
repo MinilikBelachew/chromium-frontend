@@ -200,7 +200,7 @@ export default function UserRegisterForm() {
       {step === 0 ? (
         <OnboardingStepPanel
           title="Create your account"
-          subtitle="Register to open a wallet and start earning from verified engagement."
+          subtitle="Register as a viewer to watch creators and play mini-games in Fanaye browser."
         >
           <div className="space-y-5">
             <GoogleAuthBlock
@@ -366,7 +366,7 @@ export default function UserRegisterForm() {
       {step === 3 ? (
         <OnboardingStepPanel
           title="Review & confirm"
-          subtitle="We’ll create your account and open a wallet starting at 0."
+          subtitle="We’ll create your account so you can watch and play."
         >
           <div className="space-y-4 rounded-[15px] border border-mist-gray bg-fog-gray/60 p-4">
             <ReviewRow label="Name" value={name.trim()} />

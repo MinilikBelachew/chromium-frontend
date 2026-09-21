@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "@/i18n/navigation";
 import { ArrowUpRight, Sparkles } from "lucide-react";
 
-const rotating = ["real watching", "verified sessions", "clean ledgers", "honest payouts"];
+const rotating = ["real watching", "verified sessions", "daily leaderboards", "honest analytics"];
 
 const Hero: React.FC = () => {
   const [index, setIndex] = useState(0);
@@ -45,8 +45,8 @@ const Hero: React.FC = () => {
         </h1>
 
         <p className="animate-rise mx-auto mt-8 max-w-[560px] text-center text-[17px] leading-[1.6] text-muted-foreground">
-          Vireo turns authorized viewing into an auditable ledger. Creators register a channel,
-          viewers watch on purpose, and every birr is traceable to a confirmed session.
+          Fanaye turns authorized viewing into verified sessions and mini-game competition. Creators
+          register a channel; viewers watch and play in the Fanaye browser.
         </p>
 
         <div className="animate-rise mt-10 flex flex-wrap items-center justify-center gap-4">
@@ -66,15 +66,15 @@ const Hero: React.FC = () => {
         </div>
 
         <div className="relative mt-16">
-          <Sticker className="-left-2 top-4 hidden rotate-[-8deg] sm:block" tone="coral" label="Wallet from 0" />
-          <Sticker className="right-0 top-0 hidden rotate-[7deg] md:block" tone="blue" label="Ledger-first" />
+          <Sticker className="-left-2 top-4 hidden rotate-[-8deg] sm:block" tone="coral" label="Games + watch" />
+          <Sticker className="right-0 top-0 hidden rotate-[7deg] md:block" tone="blue" label="Daily boards" />
           <Sticker className="bottom-6 left-1/2 hidden -translate-x-1/2 rotate-[3deg] lg:block" tone="mint" label="Server-confirmed" />
 
           <div className="mx-auto max-w-[980px] overflow-hidden rounded-[28px] border border-border bg-card p-3 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.45)]">
             <div className="rounded-[20px] border border-border bg-background p-6 sm:p-10">
               <div className="grid gap-6 sm:grid-cols-3">
                 <Metric value="128" label="Confirmed sessions" note="this month" />
-                <Metric value="ETB 65.20" label="Creator share" note="after platform fee" accent />
+                <Metric value="7" label="Catalog games" note="beside the video" accent />
                 <Metric value="0" label="Fake impressions" note="by design" />
               </div>
               <div className="mt-8 h-[120px] w-full">

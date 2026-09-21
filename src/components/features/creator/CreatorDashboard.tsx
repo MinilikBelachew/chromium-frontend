@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import {
   ArrowUpRight,
   Bell,
@@ -20,14 +20,21 @@ import {
   Settings,
   ShieldCheck,
   Trophy,
-  Wallet,
 } from "lucide-react";
-import { type CreatorSession } from "@/lib/creator-session";
+import {
+  clearCreatorSession,
+  parseYouTubeChannel,
+  type CreatorSession,
+} from "@/lib/creator-session";
 import { gameLogoUrl } from "@/lib/game-logos";
 import { handleFromEmail, notionistsAvatar } from "@/lib/dicebear";
 import BrandLogo from "@/components/common/BrandLogo";
 import ThemeToggle from "@/components/common/ThemeToggle";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
+  useAddOnboardingChannelMutation,
   useGetOnboardingMeQuery,
   useLogoutMutation,
 } from "@/context/services/authApi";
@@ -43,11 +50,10 @@ import {
   useListGamesQuery,
   useSetChannelGameMutation,
 } from "@/context/services/gamesApi";
+import { parseApiError } from "@/lib/auth-errors";
 import { clearAuthTokens, hasAuthToken } from "@/lib/auth-token";
 import { isCreatorRole } from "@/lib/auth-routing";
 import { profileToCreatorSession } from "@/lib/profile-mappers";
-import { clearCreatorSession } from "@/lib/creator-session";
-import { Link } from "@/i18n/navigation";
 
 type Period = "today" | "week" | "month" | "reports";
 type NavId =
@@ -62,20 +68,7 @@ type NavId =
 const LINE = "border border-border";
 const CARD = `rounded-2xl bg-card ${LINE} p-5`;
 
-const mockLedger = [
-  { id: "led_1", label: "Verified engagement · week 37", amount: 42.5, type: "revenue", date: "Sep 12" },
-  { id: "led_2", label: "Platform fee", amount: -8.5, type: "fee", date: "Sep 12" },
-  { id: "led_3", label: "Verified engagement · week 36", amount: 31.2, type: "revenue", date: "Sep 5" },
-  { id: "led_4", label: "August settlement payout", amount: -65.0, type: "payout", date: "Sep 1" },
-];
-
-const settlements = [
-  { label: "Pending review", count: 2, amount: "$18.40", bar: "#A78BFA", width: "70%" },
-  { label: "Not paid", count: 1, amount: "$12.00", bar: "#F87171", width: "45%" },
-  { label: "Partial", count: 1, amount: "$22.10", bar: "#60A5FA", width: "55%" },
-  { label: "Fully paid", count: 3, amount: "$65.00", bar: "#34D399", width: "90%" },
-  { label: "Draft", count: 1, amount: "$8.25", bar: "#FBBF24", width: "35%" },
-];
+const settlementsComingSoon = true;
 
 function toAnalyticsPeriod(period: Period): AnalyticsPeriod {
   if (period === "today" || period === "week") return period;
@@ -301,13 +294,92 @@ function NavIcon({ children }: { children: React.ReactNode }) {
 
 const navItems: { id: NavId; icon: React.ReactNode; label: string }[] = [
   { id: "overview", icon: <Home strokeWidth={1.75} />, label: "Overview" },
-  { id: "earnings", icon: <Wallet strokeWidth={1.75} />, label: "Earnings" },
+  { id: "earnings", icon: <Layers strokeWidth={1.75} />, label: "Earnings" },
   { id: "sessions", icon: <Clapperboard strokeWidth={1.75} />, label: "Sessions" },
   { id: "settlements", icon: <Layers strokeWidth={1.75} />, label: "Settlements" },
   { id: "leaderboard", icon: <Trophy strokeWidth={1.75} />, label: "Leaderboard" },
   { id: "channel", icon: <FolderOpen strokeWidth={1.75} />, label: "Channel" },
   { id: "settings", icon: <Settings strokeWidth={1.75} />, label: "Settings" },
 ];
+
+function planLabel(plan: CreatorSession["plan"]): string {
+  return plan === "pro" ? "Pro" : "Starter";
+}
+
+function ChannelRequiredGate({
+  name,
+  onAdded,
+  onSignOut,
+}: {
+  name: string;
+  onAdded: () => void;
+  onSignOut: () => void;
+}) {
+  const [channelUrl, setChannelUrl] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [addChannel, { isLoading }] = useAddOnboardingChannelMutation();
+  const parsed = useMemo(() => parseYouTubeChannel(channelUrl), [channelUrl]);
+
+  async function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setError(null);
+    if (!parsed) {
+      setError("Enter a valid YouTube channel link");
+      return;
+    }
+    try {
+      await addChannel({
+        channelUrl: parsed.channelUrl,
+        channelName: parsed.channelName,
+      }).unwrap();
+      onAdded();
+    } catch (err) {
+      setError(parseApiError(err, "Could not add channel"));
+    }
+  }
+
+  return (
+    <main className="grid min-h-[100svh] place-items-center bg-background px-6 font-sans text-foreground">
+      <div className="w-full max-w-md">
+        <BrandLogo size={48} />
+        <h1 className="mt-6 text-[28px] font-semibold tracking-[-0.03em]">
+          Add your YouTube channel
+        </h1>
+        <p className="mt-2 text-[14px] text-muted-foreground">
+          Hi {name.split(" ")[0] || "there"} — creators need a channel before the dashboard unlocks.
+        </p>
+        <form onSubmit={onSubmit} className="mt-6 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="channelUrl">YouTube channel URL</Label>
+            <Input
+              id="channelUrl"
+              value={channelUrl}
+              onChange={(e) => setChannelUrl(e.target.value)}
+              placeholder="https://youtube.com/@yourchannel"
+              className="h-11 rounded-[15px]"
+              required
+            />
+          </div>
+          {error ? (
+            <p className="rounded-[15px] border border-border bg-muted px-4 py-3 text-[13px]">
+              {error}
+            </p>
+          ) : null}
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? "Saving…" : "Continue"}
+          </Button>
+          <button
+            type="button"
+            onClick={onSignOut}
+            className="w-full text-[13px] text-muted-foreground underline-offset-4 hover:underline"
+          >
+            Sign out
+          </button>
+        </form>
+      </div>
+    </main>
+  );
+}
 
 export default function CreatorDashboard() {
   const router = useRouter();
@@ -326,7 +398,7 @@ export default function CreatorDashboard() {
     setReady(true);
   }, [router]);
 
-  const { data, isError, isLoading } = useGetOnboardingMeQuery(undefined, {
+  const { data, isError, isLoading, refetch } = useGetOnboardingMeQuery(undefined, {
     skip: !ready,
   });
 
@@ -347,7 +419,15 @@ export default function CreatorDashboard() {
     }
   }, [isError, router]);
 
-  const balance = useMemo(() => mockLedger.reduce((sum, row) => sum + row.amount, 0), []);
+  async function signOut() {
+    try {
+      await logout().unwrap();
+    } catch {
+      clearAuthTokens();
+    }
+    clearCreatorSession();
+    router.push("/sign-in");
+  }
 
   if (!session || !ready || isLoading) {
     return (
@@ -357,14 +437,18 @@ export default function CreatorDashboard() {
     );
   }
 
-  async function signOut() {
-    try {
-      await logout().unwrap();
-    } catch {
-      clearAuthTokens();
-    }
-    clearCreatorSession();
-    router.push("/sign-in");
+  if (!session.channelId) {
+    return (
+      <ChannelRequiredGate
+        name={session.name}
+        onAdded={() => {
+          void refetch();
+        }}
+        onSignOut={() => {
+          void signOut();
+        }}
+      />
+    );
   }
 
   const initials = session.name
@@ -461,7 +545,9 @@ export default function CreatorDashboard() {
                 <p className="max-w-[140px] truncate text-[13px] font-medium tracking-[-0.01em]">
                   {session.name}
                 </p>
-                <p className="whitespace-nowrap text-[11px] text-muted-foreground">Creator · Pro</p>
+                <p className="whitespace-nowrap text-[11px] text-muted-foreground">
+                  Creator · {planLabel(session.plan)}
+                </p>
               </div>
             </div>
           </div>
@@ -496,8 +582,8 @@ export default function CreatorDashboard() {
                   Channel verification pending
                 </p>
                 <p className="mt-1 text-[13px] leading-[1.5] text-muted-foreground">
-                  Admins review ownership before engagement counts toward revenue. Pro is active, so
-                  dashboard tools stay available meanwhile.
+                  Admins review ownership before engagement counts toward revenue. Dashboard tools
+                  stay available while verification is pending.
                 </p>
               </div>
               <a
@@ -515,12 +601,11 @@ export default function CreatorDashboard() {
           {nav === "overview" ? (
             <OverviewGrid
               session={session}
-              balance={balance}
               period={period}
               onOpenSessions={() => setNav("sessions")}
             />
           ) : null}
-          {nav === "earnings" ? <EarningsPanel balance={balance} /> : null}
+          {nav === "earnings" ? <EarningsPanel /> : null}
           {nav === "sessions" ? <SessionsPanel period={period} /> : null}
           {nav === "settlements" ? <SettlementsPanel /> : null}
           {nav === "leaderboard" ? (
@@ -556,12 +641,10 @@ export default function CreatorDashboard() {
 
 function OverviewGrid({
   session,
-  balance,
   period,
   onOpenSessions,
 }: {
   session: CreatorSession;
-  balance: number;
   period: Period;
   onOpenSessions?: () => void;
 }) {
@@ -862,7 +945,7 @@ function OverviewGrid({
             {session.channelName}
           </p>
           <p className="mt-1 text-[12.5px] capitalize text-muted-foreground">
-            {session.verificationStatus} · {session.plan === "pro" ? "Pro" : "Starter"} plan
+            {session.verificationStatus} · {planLabel(session.plan)} plan
           </p>
           {session.gameName ? (
             <div className="mt-3 flex items-center gap-2">
@@ -895,11 +978,9 @@ function OverviewGrid({
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Earnings
           </p>
-          <p className="mt-2 text-[22px] font-semibold tracking-[-0.03em]">
-            ${balance.toFixed(2)}
-          </p>
+          <p className="mt-2 text-[15px] font-semibold tracking-[-0.02em]">Coming later</p>
           <p className="mt-1 text-[12px] text-muted-foreground">
-            Ledger mock — not tied to sessions yet
+            Payouts and settlements are not live yet. Engagement analytics above are real.
           </p>
         </section>
 
@@ -917,40 +998,15 @@ function OverviewGrid({
   );
 }
 
-function EarningsPanel({ balance }: { balance: number }) {
+function EarningsPanel() {
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-      <StatMini label="Ledger balance" value={`$${balance.toFixed(2)}`} hint="Immutable sum" />
-      <StatMini label="Gross (MTD)" value="$81.70" hint="Before fee split" />
-      <StatMini label="Creator share" value="$65.20" hint="Platform fee $16.50" />
-      <section className={`${CARD} sm:col-span-3`}>
-        <h2 className="text-[15px] font-semibold tracking-[-0.02em]">Ledger transactions</h2>
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[560px] text-left text-[13px]">
-            <thead className="text-muted-foreground">
-              <tr>
-                <th className="pb-3 font-medium">Date</th>
-                <th className="pb-3 font-medium">Description</th>
-                <th className="pb-3 font-medium">Type</th>
-                <th className="pb-3 text-right font-medium">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mockLedger.map((row) => (
-                <tr key={row.id} className="border-t border-border">
-                  <td className="py-3 text-muted-foreground">{row.date}</td>
-                  <td className="py-3">{row.label}</td>
-                  <td className="py-3 capitalize text-muted-foreground">{row.type}</td>
-                  <td className="py-3 text-right font-medium">
-                    {row.amount < 0 ? "-" : "+"}${Math.abs(row.amount).toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </div>
+    <section className={CARD}>
+      <h2 className="text-[16px] font-semibold tracking-[-0.02em]">Earnings</h2>
+      <p className="mt-2 max-w-xl text-[13.5px] text-muted-foreground">
+        Creator payouts are not live yet. Use Sessions and Leaderboard for real engagement data from
+        the Fanaye browser.
+      </p>
+    </section>
   );
 }
 
@@ -1023,24 +1079,14 @@ function SettlementsPanel() {
     <section className={CARD}>
       <h2 className="text-[16px] font-semibold tracking-[-0.02em]">Settlements & payouts</h2>
       <p className="mt-2 max-w-xl text-[13.5px] text-muted-foreground">
-        Validate, aggregate, read the ledger balance, generate a settlement, then hand off to the
-        payment provider. Balances are never mutated in place.
+        Settlements are coming later. When payments ship, this page will show review, payout, and
+        status without mock balances.
       </p>
-      <div className="mt-6 space-y-4">
-        {settlements.map((item) => (
-          <div key={item.label} className="flex items-center gap-4">
-            <p className="w-[110px] shrink-0 text-[12.5px] text-muted-foreground">{item.label}</p>
-            <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full"
-                style={{ width: item.width, background: item.bar }}
-              />
-            </div>
-            <p className="w-6 shrink-0 text-right text-[12.5px] text-muted-foreground">{item.count}</p>
-            <p className="w-[70px] shrink-0 text-right text-[12.5px] font-medium">{item.amount}</p>
-          </div>
-        ))}
-      </div>
+      {settlementsComingSoon ? (
+        <p className="mt-6 rounded-2xl border border-dashed border-border px-4 py-6 text-center text-[13px] text-muted-foreground">
+          No settlements yet
+        </p>
+      ) : null}
     </section>
   );
 }
@@ -1070,7 +1116,7 @@ function ChannelPanel({
     ["YouTube ID", session.youtubeChannelId],
     ["URL", session.channelUrl],
     ["Verification", session.verificationStatus],
-    ["Plan", session.plan],
+    ["Plan", planLabel(session.plan)],
     ["Email", session.email],
   ] as const;
 

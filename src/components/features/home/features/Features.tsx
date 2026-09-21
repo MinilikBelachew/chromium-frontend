@@ -4,14 +4,14 @@ import { ArrowUpRight, Check } from "lucide-react";
 
 const creatorPerks = [
   "Channel verification workflow",
-  "Earnings split you can audit",
-  "Monthly settlement & payouts",
+  "Daily session analytics",
+  "Mini-games beside your videos",
 ];
 
 const viewerPerks = [
-  "Wallet opens at signup",
-  "Starts at ETB 0",
-  "Only authorized sessions count",
+  "Watch in Fanaye browser",
+  "Play catalog mini-games",
+  "Compete on daily leaderboards",
 ];
 
 const Features: React.FC = () => {
@@ -20,7 +20,7 @@ const Features: React.FC = () => {
       <div className="wide-shell">
         <h2 className="max-w-[720px] text-[42px] font-semibold leading-[1.02] tracking-[-0.04em] text-foreground sm:text-[58px]">
           Two doors.
-          <span className="italic text-sunrise-coral"> One honest ledger.</span>
+          <span className="italic text-sunrise-coral"> One honest platform.</span>
         </h2>
 
         <div className="mt-14 grid gap-6 lg:grid-cols-2">
@@ -32,7 +32,7 @@ const Features: React.FC = () => {
               Own a channel
             </p>
             <h3 className="mt-4 text-[32px] font-semibold leading-[1.1] tracking-[-0.03em] text-foreground">
-              Turn real attention into real payouts.
+              See who watched — and what they played.
             </h3>
             <ul className="mt-7 space-y-3">
               {creatorPerks.map((perk) => (
@@ -66,7 +66,7 @@ const Features: React.FC = () => {
               Just watch
             </p>
             <h3 className="mt-4 text-[32px] font-semibold leading-[1.1] tracking-[-0.03em]">
-              A wallet that fills up honestly.
+              Watch creators. Play beside the video.
             </h3>
             <ul className="mt-7 space-y-3">
               {viewerPerks.map((perk) => (
@@ -82,7 +82,7 @@ const Features: React.FC = () => {
               href="/register"
               className="group mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3.5 text-[14px] font-bold text-carbon-black"
             >
-              Open my wallet
+              Start watching
               <ArrowUpRight className="h-4 w-4 transition-transform group-hover:rotate-45" />
             </Link>
           </article>

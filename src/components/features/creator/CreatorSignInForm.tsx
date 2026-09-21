@@ -7,10 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import AuthShell from "@/components/features/creator/AuthShell";
-import { useLoginMutation } from "@/context/services/authApi";
+import { GoogleAuthBlock } from "@/components/features/auth/ContinueWithGoogle";
+import {
+  useGoogleLoginMutation,
+  useLoginMutation,
+} from "@/context/services/authApi";
 import { parseApiError } from "@/lib/auth-errors";
 import { homePathForRole, isCreatorRole } from "@/lib/auth-routing";
-import { hasAuthToken } from "@/lib/auth-token";
+import { clearAuthTokens, hasAuthToken } from "@/lib/auth-token";
 
 export default function CreatorSignInForm() {
   const router = useRouter();
@@ -18,6 +22,7 @@ export default function CreatorSignInForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [login, { isLoading }] = useLoginMutation();
+  const [googleLogin, { isLoading: googleLoading }] = useGoogleLoginMutation();
 
   useEffect(() => {
     if (hasAuthToken()) {
@@ -35,6 +40,7 @@ export default function CreatorSignInForm() {
       }).unwrap();
 
       if (!isCreatorRole(result.user.role)) {
+        clearAuthTokens();
         setError("This account is not a creator. Use viewer sign-in instead.");
         return;
       }
@@ -42,6 +48,25 @@ export default function CreatorSignInForm() {
       router.push(homePathForRole(result.user.role));
     } catch (err) {
       setError(parseApiError(err, "Could not sign in"));
+    }
+  }
+
+  async function continueWithGoogle(idToken: string) {
+    setError(null);
+    try {
+      const result = await googleLogin({
+        idToken,
+        intent: "creator",
+      }).unwrap();
+      if (!isCreatorRole(result.user.role)) {
+        clearAuthTokens();
+        setError("This account is not a creator. Use viewer sign-in instead.");
+        return;
+      }
+      router.push(homePathForRole(result.user.role));
+    } catch (err) {
+      clearAuthTokens();
+      setError(parseApiError(err, "Could not continue with Google"));
     }
   }
 
@@ -101,10 +126,14 @@ export default function CreatorSignInForm() {
             {error}
           </p>
         ) : null}
-        <Button type="submit" className="w-full" disabled={isLoading}>
+        <Button type="submit" className="w-full" disabled={isLoading || googleLoading}>
           {isLoading ? "Signing in…" : "Continue"}
           <ArrowRight className="size-4" />
         </Button>
+        <GoogleAuthBlock
+          disabled={isLoading || googleLoading}
+          onCredential={continueWithGoogle}
+        />
       </form>
     </AuthShell>
   );

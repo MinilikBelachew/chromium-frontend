@@ -1,13 +1,3 @@
-export type WalletEntryType = "credit" | "debit" | "reward" | "topup";
-
-export type WalletEntry = {
-  id: string;
-  label: string;
-  amount: number;
-  type: WalletEntryType;
-  date: string;
-};
-
 export type UserSession = {
   id: string;
   name: string;
@@ -21,7 +11,6 @@ export type UserSession = {
 };
 
 const USER_KEY = "fanaye.user.session";
-const WALLET_KEY = "fanaye.user.wallet";
 
 export function normalizePhone(input: string): string | null {
   const digits = input.replace(/[^\d+]/g, "");
@@ -49,26 +38,7 @@ export function saveUserSession(session: UserSession): void {
 
 export function clearUserSession(): void {
   window.localStorage.removeItem(USER_KEY);
-  window.localStorage.removeItem(WALLET_KEY);
-}
-
-export function getWalletLedger(): WalletEntry[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(WALLET_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as WalletEntry[];
-  } catch {
-    return [];
-  }
-}
-
-export function saveWalletLedger(entries: WalletEntry[]): void {
-  window.localStorage.setItem(WALLET_KEY, JSON.stringify(entries));
-}
-
-export function walletBalance(entries: WalletEntry[] = getWalletLedger()): number {
-  return entries.reduce((sum, row) => sum + row.amount, 0);
+  window.localStorage.removeItem("fanaye.user.wallet");
 }
 
 export function createUserSession(input: {
@@ -93,17 +63,5 @@ export function createUserSession(input: {
   };
 
   saveUserSession(session);
-  saveWalletLedger([]);
   return session;
-}
-
-export function addWalletEntry(entry: Omit<WalletEntry, "id" | "date">): WalletEntry[] {
-  const next: WalletEntry = {
-    ...entry,
-    id: `led_${Date.now()}`,
-    date: new Date().toISOString().slice(0, 10),
-  };
-  const ledger = [next, ...getWalletLedger()];
-  saveWalletLedger(ledger);
-  return ledger;
 }
