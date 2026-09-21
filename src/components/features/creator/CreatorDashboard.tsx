@@ -298,7 +298,6 @@ const navItems: { id: NavId; icon: React.ReactNode; label: string }[] = [
   { id: "sessions", icon: <Clapperboard strokeWidth={1.75} />, label: "Sessions" },
   { id: "settlements", icon: <Layers strokeWidth={1.75} />, label: "Settlements" },
   { id: "leaderboard", icon: <Trophy strokeWidth={1.75} />, label: "Leaderboard" },
-  { id: "channel", icon: <FolderOpen strokeWidth={1.75} />, label: "Channel" },
   { id: "settings", icon: <Settings strokeWidth={1.75} />, label: "Settings" },
 ];
 
@@ -575,26 +574,37 @@ export default function CreatorDashboard() {
           </div>
 
           {session.verificationStatus === "pending" ? (
-            <div className={`mb-5 flex flex-wrap items-start gap-3 rounded-2xl bg-card p-4 ${LINE}`}>
-              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-sunrise-coral" strokeWidth={1.75} />
-              <div className="min-w-0 flex-1">
-                <p className="text-[14px] font-semibold tracking-[-0.01em]">
-                  Channel verification pending
-                </p>
-                <p className="mt-1 text-[13px] leading-[1.5] text-muted-foreground">
-                  Admins review ownership before engagement counts toward revenue. Dashboard tools
-                  stay available while verification is pending.
-                </p>
+            <div
+              className="relative mb-5 min-h-[140px] overflow-hidden rounded-2xl p-5 text-white"
+              style={{
+                backgroundImage: "url('/Abstract%20Gradient.jpg')",
+                backgroundSize: "100% 100%",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+              }}
+            >
+              <div className="absolute inset-0 bg-black/35" aria-hidden />
+              <div className="relative flex flex-wrap items-start gap-3">
+                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-white" strokeWidth={1.75} />
+                <div className="min-w-0 flex-1">
+                  <p className="font-display text-[15px] font-semibold tracking-[-0.02em]">
+                    Channel verification pending
+                  </p>
+                  <p className="mt-1 text-[13px] leading-[1.5] text-white/85">
+                    Admins review ownership before engagement counts toward revenue. Dashboard tools
+                    stay available while verification is pending.
+                  </p>
+                </div>
+                <a
+                  href={session.channelUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex shrink-0 items-center gap-1 text-[13px] font-medium text-white hover:underline"
+                >
+                  YouTube
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </a>
               </div>
-              <a
-                href={session.channelUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex shrink-0 items-center gap-1 text-[13px] font-medium hover:underline"
-              >
-                YouTube
-                <ArrowUpRight className="h-3.5 w-3.5" />
-              </a>
             </div>
           ) : null}
 

@@ -3,49 +3,49 @@
 import React from "react";
 import { Link } from "@/i18n/navigation";
 import BrandLogo from "@/components/common/BrandLogo";
-import ThemeToggle from "@/components/common/ThemeToggle";
+import { motion } from "framer-motion";
 
 const navLinks = [
-  { href: "#creators", label: "Creators" },
-  { href: "#how-it-works", label: "How it works" },
+  { href: "#features", label: "Features" },
+  { href: "#how-it-works", label: "Product" },
+  { href: "#pricing", label: "Pricing" },
   { href: "#faq", label: "FAQ" },
 ];
 
 const Header: React.FC = () => {
   return (
-    <header className="pointer-events-none fixed inset-x-0 top-0 z-50 px-4 pt-4 sm:px-6">
-      <div className="pointer-events-auto mx-auto flex w-full max-w-[1200px] items-center justify-between gap-4 rounded-full border border-border bg-card/85 px-4 py-2.5 backdrop-blur-xl">
-        <BrandLogo size={34} />
+    <motion.header
+      className="absolute inset-x-0 top-0 z-50"
+      initial={{ opacity: 0, y: -12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between gap-4 px-6 py-6 sm:px-8">
+        <Link href="/" className="inline-flex items-center gap-2.5" aria-label="Fanaye">
+          <BrandLogo href={null} size={28} />
+          <span className="text-[15px] font-medium tracking-[-0.02em] text-white">Fanaye</span>
+        </Link>
 
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden items-center gap-8 md:flex">
           {navLinks.map((link) => (
             <a
               key={link.href}
               href={link.href}
-              className="rounded-full px-4 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="text-[13px] font-medium text-white/70 transition-colors duration-300 hover:text-white"
             >
               {link.label}
             </a>
           ))}
         </nav>
 
-        <div className="flex items-center gap-2">
-          <ThemeToggle className="h-9 w-9" />
-          <Link
-            href="/login"
-            className="hidden rounded-full px-3 py-2 text-[13px] font-medium text-muted-foreground hover:text-foreground sm:inline"
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/get-started"
-            className="rounded-full bg-sunrise-coral px-5 py-2.5 text-[13px] font-bold text-white transition-transform hover:-translate-y-0.5"
-          >
-            Get started
-          </Link>
-        </div>
+        <Link
+          href="/get-started"
+          className="text-[13px] font-medium text-white transition-opacity duration-300 hover:opacity-70"
+        >
+          Get started
+        </Link>
       </div>
-    </header>
+    </motion.header>
   );
 };
 

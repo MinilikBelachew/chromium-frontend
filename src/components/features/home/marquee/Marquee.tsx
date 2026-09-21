@@ -1,31 +1,25 @@
-import React from "react";
+"use client";
 
-const words = [
-  "verified engagement",
-  "immutable ledger",
-  "authorized sessions",
-  "monthly settlement",
-  "integrity checks",
-  "creator share",
-];
+import React from "react";
+import { Reveal } from "../motion";
+
+const logos = ["YouTube", "Creators", "Viewers", "Leaderboards", "Verified", "Sessions"];
 
 export default function Marquee() {
-  const row = [...words, ...words];
-
   return (
-    <section className="border-y border-border bg-muted py-5">
-      <div className="overflow-hidden">
-        <div className="marquee-track items-center gap-8 pr-8">
-          {row.map((word, index) => (
-            <span key={`${word}-${index}`} className="flex shrink-0 items-center gap-8">
-              <span className="text-[26px] font-semibold tracking-[-0.03em] text-foreground sm:text-[34px]">
-                {word}
-              </span>
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-sunrise-coral" />
+    <section className="border-b border-[#1c1c1e]/10 bg-[#f7f5f0] px-6 py-12 sm:py-16">
+      <Reveal>
+        <div className="mx-auto flex max-w-[1120px] flex-wrap items-center justify-center gap-x-12 gap-y-4">
+          {logos.map((name) => (
+            <span
+              key={name}
+              className="text-[13px] font-medium tracking-[0.04em] text-[#1c1c1e]/35 uppercase"
+            >
+              {name}
             </span>
           ))}
         </div>
-      </div>
+      </Reveal>
     </section>
   );
 }

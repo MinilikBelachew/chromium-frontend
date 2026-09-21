@@ -1,64 +1,48 @@
-import React from "react";
+"use client";
 
-const steps = [
-  {
-    n: "01",
-    title: "Register & verify",
-    body: "Creators drop a YouTube channel link. Ownership is reviewed before anything can earn.",
-    tone: "bg-[#FFF1E9] text-[#9A3412] dark:bg-[#2A1710] dark:text-[#FFC5A8]",
-    tilt: "lg:-rotate-2",
-  },
-  {
-    n: "02",
-    title: "Watch on purpose",
-    body: "Viewers open an authorized session on a registered channel. Everything else stays normal YouTube.",
-    tone: "bg-[#E8F3FF] text-[#1E40AF] dark:bg-[#0F1B2E] dark:text-[#A8C9FF]",
-    tilt: "lg:rotate-1",
-  },
-  {
-    n: "03",
-    title: "Confirm server-side",
-    body: "VIEW_STARTED → SESSION_ACTIVE → ENGAGEMENT_CONFIRMED → VIEW_COMPLETED. No client trust.",
-    tone: "bg-[#F3E8FF] text-[#6B21A8] dark:bg-[#1E1230] dark:text-[#D9BBFF]",
-    tilt: "lg:-rotate-1",
-  },
-  {
-    n: "04",
-    title: "Settle from the ledger",
-    body: "Eligible events write immutable rows. Balances are summed, never overwritten, then paid out.",
-    tone: "bg-[#ECFDF3] text-[#166534] dark:bg-[#0D1F16] dark:text-[#9DE6BB]",
-    tilt: "lg:rotate-2",
-  },
+import React from "react";
+import { Reveal } from "../motion";
+
+const points = [
+  "Register your YouTube channel once",
+  "Choose the mini-game on your channel",
+  "See verified sessions and watch time",
+  "Daily leaderboards your audience can climb",
 ];
 
 const HowItWorks: React.FC = () => {
   return (
-    <section id="how-it-works" className="bg-background py-24">
-      <div className="wide-shell">
-        <div className="flex flex-col items-start gap-4 md:flex-row md:items-end md:justify-between">
-          <h2 className="max-w-[620px] text-[42px] font-semibold leading-[1.02] tracking-[-0.04em] text-foreground sm:text-[58px]">
-            Four steps.
-            <span className="block text-muted-foreground">Zero funny business.</span>
+    <section id="how-it-works" className="bg-[#f7f5f0] px-6 py-24 sm:py-32">
+      <div className="mx-auto grid max-w-[1120px] gap-14 lg:grid-cols-2 lg:gap-20 lg:items-center">
+        <Reveal>
+          <h2 className="text-[clamp(2rem,4vw,3rem)] font-medium leading-[1.08] tracking-[-0.04em] text-[#1c1c1e]">
+            Tell Fanaye once. Watch engagement stay honest.
           </h2>
-          <p className="max-w-[360px] text-[15px] leading-[1.6] text-muted-foreground">
-            The pipeline is deliberately boring where it matters — and strict about what counts.
+          <p className="mt-5 max-w-[420px] text-[15px] leading-[1.65] text-[#1c1c1e]/5">
+            Creators set up a channel. Viewers open the Fanaye browser. Sessions, scores, and boards
+            are first-party — not YouTube Studio guesses.
           </p>
-        </div>
+          <ul className="mt-10 space-y-0 border-t border-[#1c1c1e]/10">
+            {points.map((item) => (
+              <li
+                key={item}
+                className="border-b border-[#1c1c1e]/10 py-4 text-[15px] tracking-[-0.01em] text-[#1c1c1e]"
+              >
+                {item}
+              </li>
+            ))}
+          </ul>
+        </Reveal>
 
-        <div className="mt-14 grid gap-6 md:grid-cols-2">
-          {steps.map((step) => (
-            <article
-              key={step.n}
-              className={`hover-tilt rounded-[26px] border border-border p-7 ${step.tone} ${step.tilt}`}
-            >
-              <p className="text-[44px] font-bold leading-none tracking-[-0.04em] opacity-40">
-                {step.n}
-              </p>
-              <h3 className="mt-5 text-[24px] font-semibold tracking-[-0.02em]">{step.title}</h3>
-              <p className="mt-3 text-[15px] leading-[1.6] opacity-80">{step.body}</p>
-            </article>
-          ))}
-        </div>
+        <Reveal delay={0.12}>
+          <div className="relative aspect-[4/5] overflow-hidden sm:aspect-[5/6]">
+            <img
+              src="/landing-hero.jpg"
+              alt=""
+              className="h-full w-full object-cover object-center"
+            />
+          </div>
+        </Reveal>
       </div>
     </section>
   );

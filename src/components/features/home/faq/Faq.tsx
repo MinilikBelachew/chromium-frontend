@@ -1,13 +1,17 @@
+"use client";
+
 import React from "react";
+import { Link } from "@/i18n/navigation";
+import { Reveal } from "../motion";
 
 const faqs = [
   {
-    q: "Does this spoof geography or ad markets?",
+    q: "Does Fanaye spoof geography or ad markets?",
     a: "No. Engagement is measured from the Fanaye browser on verified channels — never geo/IP manipulation or artificial impressions.",
   },
   {
     q: "What do creators get today?",
-    a: "Verified watch sessions, mini-game play, daily leaderboards, and analytics on who watched and for how long. Payouts are not live yet.",
+    a: "Verified watch sessions, mini-game play, daily leaderboards, and analytics. Payouts are not live yet.",
   },
   {
     q: "How do leaderboards work?",
@@ -15,39 +19,50 @@ const faqs = [
   },
   {
     q: "Who can join?",
-    a: "Viewers register with name, email, and phone. Creators add a YouTube channel and wait for verification before engagement counts.",
+    a: "Viewers register with name, email, and phone. Creators add a YouTube channel and wait for verification.",
+  },
+  {
+    q: "Is Pro available?",
+    a: "Starter is free today. Pro billing and settlements ship later — we don’t sell a fake upgrade.",
   },
 ];
 
 const Faq: React.FC = () => {
   return (
-    <section id="faq" className="bg-muted py-24">
-      <div className="wide-shell grid gap-12 lg:grid-cols-[0.8fr_1.2fr]">
-        <h2 className="text-[42px] font-semibold leading-[1.02] tracking-[-0.04em] text-foreground sm:text-[54px]">
-          Questions,
-          <span className="block text-muted-foreground">answered plainly.</span>
-        </h2>
+    <section id="faq" className="bg-[#f7f5f0] px-6 py-24 sm:py-32">
+      <div className="mx-auto grid max-w-[1120px] gap-14 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
+        <Reveal>
+          <h2 className="text-[clamp(1.85rem,3.5vw,2.75rem)] font-medium leading-[1.1] tracking-[-0.04em] text-[#1c1c1e]">
+            Questions answered
+          </h2>
+          <p className="mt-4 max-w-[300px] text-[15px] leading-[1.55] text-[#1c1c1e]/5">
+            Watching, games, verification, and what is live today.
+          </p>
+          <Link
+            href="/get-started"
+            className="mt-8 inline-flex border border-[#1c1c1e] px-5 py-2.5 text-[13px] font-medium text-[#1c1c1e] transition-colors duration-300 hover:bg-[#1c1c1e] hover:text-white"
+          >
+            Get started
+          </Link>
+        </Reveal>
 
-        <div className="space-y-3">
+        <Reveal delay={0.1} className="border-t border-[#1c1c1e]/10">
           {faqs.map((item) => (
-            <details
-              key={item.q}
-              className="group rounded-[22px] border border-border bg-card px-6 py-5 transition-colors open:bg-background"
-            >
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-6">
-                <span className="text-[19px] font-medium tracking-[-0.02em] text-foreground sm:text-[22px]">
+            <details key={item.q} className="group border-b border-[#1c1c1e]/10">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-6 py-6">
+                <span className="text-[16px] font-medium tracking-[-0.02em] text-[#1c1c1e]">
                   {item.q}
                 </span>
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-[18px] leading-none text-muted-foreground transition-transform group-open:rotate-45">
+                <span className="text-[18px] text-[#1c1c1e]/35 transition-transform duration-300 group-open:rotate-45">
                   +
                 </span>
               </summary>
-              <p className="mt-4 max-w-[640px] text-[15px] leading-[1.6] text-muted-foreground">
+              <p className="max-w-[520px] pb-6 text-[14px] leading-[1.65] text-[#1c1c1e]/55">
                 {item.a}
               </p>
             </details>
           ))}
-        </div>
+        </Reveal>
       </div>
     </section>
   );

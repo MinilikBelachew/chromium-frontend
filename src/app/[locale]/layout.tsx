@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Instrument_Sans, Inter, JetBrains_Mono } from "next/font/google";
 import Providers from "./providers";
 import "@/styles/globals.css";
 
@@ -11,6 +11,12 @@ import { setRequestLocale } from "next-intl/server";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  display: "swap",
+});
+
+const instrumentSans = Instrument_Sans({
+  subsets: ["latin"],
+  variable: "--font-instrument",
   display: "swap",
 });
 
@@ -45,7 +51,7 @@ export default async function RootLayout({
     <html
       lang={locale}
       suppressHydrationWarning
-      className={`${inter.variable} ${jetbrainsMono.variable}`}
+      className={`${inter.variable} ${instrumentSans.variable} ${jetbrainsMono.variable}`}
     >
       <head>
         <script

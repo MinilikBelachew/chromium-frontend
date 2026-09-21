@@ -1,92 +1,60 @@
+"use client";
+
 import React from "react";
-import { Link } from "@/i18n/navigation";
-import { ArrowUpRight, Check } from "lucide-react";
+import { Reveal, RevealStagger } from "../motion";
 
-const creatorPerks = [
-  "Channel verification workflow",
-  "Daily session analytics",
-  "Mini-games beside your videos",
-];
-
-const viewerPerks = [
-  "Watch in Fanaye browser",
-  "Play catalog mini-games",
-  "Compete on daily leaderboards",
+const items = [
+  {
+    n: "01",
+    title: "Verified channels",
+    body: "Creators register a YouTube channel. Ownership is confirmed before engagement counts.",
+  },
+  {
+    n: "02",
+    title: "Fanaye browser",
+    body: "Viewers watch registered channels with session-bound play — not spoofed geography.",
+  },
+  {
+    n: "03",
+    title: "Mini-games",
+    body: "Play the channel’s catalog game beside the video. Bubble, Snake, 2048, and more.",
+  },
+  {
+    n: "04",
+    title: "Daily boards",
+    body: "Scores land on UTC daily leaderboards per game and channel. Immediate ranks.",
+  },
 ];
 
 const Features: React.FC = () => {
   return (
-    <section id="creators" className="bg-muted py-24">
-      <div className="wide-shell">
-        <h2 className="max-w-[720px] text-[42px] font-semibold leading-[1.02] tracking-[-0.04em] text-foreground sm:text-[58px]">
-          Two doors.
-          <span className="italic text-sunrise-coral"> One honest platform.</span>
-        </h2>
+    <section id="features" className="bg-[#f7f5f0] px-6 py-24 sm:py-32">
+      <div className="mx-auto max-w-[1120px]">
+        <Reveal className="grid gap-6 border-b border-[#1c1c1e]/10 pb-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
+          <h2 className="text-[clamp(2rem,4vw,3.25rem)] font-medium leading-[1.08] tracking-[-0.04em] text-[#1c1c1e]">
+            Built for creators and viewers who want honesty
+          </h2>
+          <p className="max-w-[360px] text-[15px] leading-[1.6] text-[#1c1c1e]/5 lg:justify-self-end lg:text-right">
+            Authorized watching. First-party sessions. No geo tricks or black-box metrics.
+          </p>
+        </Reveal>
 
-        <div className="mt-14 grid gap-6 lg:grid-cols-2">
-          <article className="hover-tilt relative overflow-hidden rounded-[28px] border border-border bg-card p-8">
-            <span className="absolute right-6 top-6 rounded-full bg-sunrise-coral px-3 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-white">
-              creators
-            </span>
-            <p className="text-[13px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-              Own a channel
-            </p>
-            <h3 className="mt-4 text-[32px] font-semibold leading-[1.1] tracking-[-0.03em] text-foreground">
-              See who watched — and what they played.
-            </h3>
-            <ul className="mt-7 space-y-3">
-              {creatorPerks.map((perk) => (
-                <li key={perk} className="flex items-start gap-3 text-[15px] text-foreground">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-sunrise-coral text-white">
-                    <Check className="h-3 w-3" strokeWidth={3} />
-                  </span>
-                  {perk}
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/sign-up"
-              className="group mt-8 inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-3.5 text-[14px] font-bold text-background"
+        <RevealStagger className="mt-4">
+          {items.map((item) => (
+            <article
+              key={item.n}
+              className="grid gap-4 border-b border-[#1c1c1e]/10 py-10 sm:grid-cols-[88px_1fr_1.2fr] sm:gap-8"
             >
-              Register a channel
-              <ArrowUpRight className="h-4 w-4 transition-transform group-hover:rotate-45" />
-            </Link>
-          </article>
-
-          <article className="hover-tilt relative overflow-hidden rounded-[28px] border border-border p-8 text-white">
-            <span
-              aria-hidden
-              className="absolute inset-0 -z-10"
-              style={{ background: "var(--gradient-coral-glow)" }}
-            />
-            <span className="absolute right-6 top-6 rounded-full bg-black/25 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.1em]">
-              viewers
-            </span>
-            <p className="text-[13px] font-semibold uppercase tracking-[0.12em] text-white/80">
-              Just watch
-            </p>
-            <h3 className="mt-4 text-[32px] font-semibold leading-[1.1] tracking-[-0.03em]">
-              Watch creators. Play beside the video.
-            </h3>
-            <ul className="mt-7 space-y-3">
-              {viewerPerks.map((perk) => (
-                <li key={perk} className="flex items-start gap-3 text-[15px]">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white/25">
-                    <Check className="h-3 w-3" strokeWidth={3} />
-                  </span>
-                  {perk}
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/register"
-              className="group mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3.5 text-[14px] font-bold text-carbon-black"
-            >
-              Start watching
-              <ArrowUpRight className="h-4 w-4 transition-transform group-hover:rotate-45" />
-            </Link>
-          </article>
-        </div>
+              <p className="text-[13px] font-medium tracking-[0.08em] text-[#1c1c1e]/35">
+                {item.n}
+              </p>
+              <h3 className="text-[22px] font-medium tracking-[-0.03em] text-[#1c1c1e]">
+                {item.title}
+              </h3>
+              <p className="text-[15px] leading-[1.6] text-[#1c1c1e]/55">{item.body}</p>
+            </article>
+          ))}
+        </RevealStagger>
       </div>
     </section>
   );

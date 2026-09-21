@@ -1,155 +1,240 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "@/i18n/navigation";
-import { ArrowUpRight, Sparkles } from "lucide-react";
+import BrandLogo from "@/components/common/BrandLogo";
+import {
+  motion,
+  useScroll,
+  useTransform,
+  useReducedMotion,
+} from "framer-motion";
 
-const rotating = ["real watching", "verified sessions", "daily leaderboards", "honest analytics"];
+const HERO_IMAGE = "/landing-hero.jpg";
+const ease = [0.22, 1, 0.36, 1] as const;
 
+const navLinks = [
+  { href: "#features", label: "Features" },
+  { href: "#how-it-works", label: "Product" },
+  { href: "#pricing", label: "Pricing" },
+  { href: "#faq", label: "FAQ" },
+];
+
+/**
+ * Fresh view: full-bleed hero + white header.
+ * On scroll: hero embeds into a rounded frame; header stays and turns black on cream.
+ */
 const Hero: React.FC = () => {
-  const [index, setIndex] = useState(0);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const reduce = useReducedMotion();
+  const frameRef = useRef({ x: 64, top: 88, bottom: 56 });
+  const [, setFrameTick] = useState(0);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setIndex((value) => (value + 1) % rotating.length);
-    }, 2200);
-    return () => window.clearInterval(timer);
+    const measure = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      frameRef.current = {
+        x: Math.round(Math.min(96, Math.max(20, w * 0.055))),
+        top: Math.round(Math.min(112, Math.max(72, h * 0.11))),
+        bottom: Math.round(Math.min(88, Math.max(28, h * 0.07))),
+      };
+      setFrameTick((n) => n + 1);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
   }, []);
 
+  const { scrollYProgress } = useScroll({
+    target: trackRef,
+    offset: ["start start", "end start"],
+  });
+
+  const morph = (v: number) => {
+    const t = Math.min(1, Math.max(0, v / 0.7));
+    return 1 - Math.pow(1 - t, 3);
+  };
+
+  const insetX = useTransform(scrollYProgress, (v) => morph(v) * frameRef.current.x);
+  const insetTop = useTransform(scrollYProgress, (v) => morph(v) * frameRef.current.top);
+  const insetBottom = useTransform(scrollYProgress, (v) => morph(v) * frameRef.current.bottom);
+  const radius = useTransform(scrollYProgress, (v) => morph(v) * 28);
+
+  // Header: white on image → black on cream
+  const headerColor = useTransform(
+    scrollYProgress,
+    [0, 0.28],
+    ["rgb(255, 255, 255)", "rgb(28, 28, 30)"],
+  );
+  const headerMuted = useTransform(
+    scrollYProgress,
+    [0, 0.28],
+    ["rgba(255, 255, 255, 0.72)", "rgba(28, 28, 30, 0.55)"],
+  );
+
+  const ctaOutlineOpacity = useTransform(scrollYProgress, [0, 0.35], [1, 0]);
+  const ctaSolidOpacity = useTransform(scrollYProgress, [0.25, 0.5], [0, 1]);
+  const ctaOutlineEvents = useTransform(scrollYProgress, (v) =>
+    v < 0.3 ? "auto" : "none",
+  );
+  const ctaSolidEvents = useTransform(scrollYProgress, (v) =>
+    v > 0.32 ? "auto" : "none",
+  );
+  const imageScale = useTransform(scrollYProgress, [0, 0.7], [1.04, 1]);
+
+  if (reduce) {
+    return (
+      <section className="relative isolate min-h-svh overflow-hidden bg-[#0c0c0c]">
+        <img
+          src={HERO_IMAGE}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover object-center"
+        />
+        <div aria-hidden className="absolute inset-0 bg-black/45" />
+        <HeroCopy />
+      </section>
+    );
+  }
+
   return (
-    <section className="grain relative isolate overflow-hidden bg-background pb-16 pt-32 sm:pt-36">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -left-32 top-10 h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle,rgba(252,95,43,0.35),transparent_65%)] blur-2xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-24 top-40 h-[380px] w-[380px] rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.28),transparent_65%)] blur-2xl"
-      />
+    <div ref={trackRef} className="relative h-[165vh] bg-[#f7f5f0]">
+      <div className="sticky top-0 h-svh overflow-hidden bg-[#f7f5f0]">
+        <header className="absolute inset-x-0 top-0 z-50">
+          <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between gap-4 px-6 py-6 sm:px-8">
+            <Link href="/" className="inline-flex items-center gap-2.5" aria-label="Fanaye">
+              <BrandLogo href={null} size={28} />
+              <motion.span
+                className="text-[15px] font-medium tracking-[-0.02em]"
+                style={{ color: headerColor }}
+              >
+                Fanaye
+              </motion.span>
+            </Link>
+            <nav className="hidden items-center gap-8 md:flex">
+              {navLinks.map((link) => (
+                <motion.a
+                  key={link.href}
+                  href={link.href}
+                  className="text-[13px] font-medium transition-opacity duration-300 hover:opacity-100"
+                  style={{ color: headerMuted }}
+                >
+                  {link.label}
+                </motion.a>
+              ))}
+            </nav>
+            <motion.div style={{ color: headerColor }}>
+              <Link
+                href="/get-started"
+                className="text-[13px] font-medium transition-opacity duration-300 hover:opacity-70"
+                style={{ color: "inherit" }}
+              >
+                Get started
+              </Link>
+            </motion.div>
+          </div>
+        </header>
 
-      <div className="wide-shell relative">
-        <div className="animate-rise flex flex-wrap items-center justify-center gap-3">
-          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            <Sparkles className="h-3.5 w-3.5 text-sunrise-coral" />
-            no spoofing · no fake views
-          </span>
-        </div>
+        <motion.div
+          className="absolute overflow-hidden"
+          style={{
+            left: insetX,
+            right: insetX,
+            top: insetTop,
+            bottom: insetBottom,
+            borderRadius: radius,
+          }}
+        >
+          <motion.img
+            src={HERO_IMAGE}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover object-center"
+            style={{ scale: imageScale }}
+            initial={{ scale: 1.08 }}
+            animate={{ scale: 1.04 }}
+            transition={{ duration: 1.6, ease }}
+          />
+          <div aria-hidden className="absolute inset-0 bg-black/45" />
 
-        <h1 className="animate-rise mx-auto mt-8 max-w-[1100px] text-center text-[13vw] font-semibold leading-[0.92] tracking-[-0.045em] text-foreground sm:text-[9vw] lg:text-[104px]">
-          Get paid for
-          <span className="relative mx-3 inline-block">
-            <span className="absolute inset-x-0 bottom-[0.12em] -z-10 h-[0.42em] -rotate-1 rounded-full bg-sunrise-coral/25" />
-            <span className="italic">{rotating[index]}</span>
-          </span>
-          <span className="block">not for guesswork.</span>
-        </h1>
+          <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 pb-16 pt-24 text-center sm:px-10">
+            <motion.p
+              className="text-[12px] font-medium tracking-[0.2em] text-white/60 uppercase"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.15, ease }}
+            >
+              Fanaye
+            </motion.p>
+            <motion.h1
+              className="mt-6 max-w-[900px] text-[clamp(2.5rem,7vw,4.5rem)] font-medium leading-[1.05] tracking-[-0.04em] text-white"
+              initial={{ opacity: 0, y: 28 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.95, delay: 0.25, ease }}
+            >
+              The browser that turns watching into{" "}
+              <em className="italic font-medium text-white">real</em> engagement
+            </motion.h1>
+            <motion.p
+              className="mt-6 max-w-[480px] text-[16px] leading-[1.55] text-white/70"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.85, delay: 0.4, ease }}
+            >
+              Creators register channels. Viewers watch in Fanaye and play mini-games beside the
+              video. Daily leaderboards — no spoofed views.
+            </motion.p>
 
-        <p className="animate-rise mx-auto mt-8 max-w-[560px] text-center text-[17px] leading-[1.6] text-muted-foreground">
-          Fanaye turns authorized viewing into verified sessions and mini-game competition. Creators
-          register a channel; viewers watch and play in the Fanaye browser.
-        </p>
-
-        <div className="animate-rise mt-10 flex flex-wrap items-center justify-center gap-4">
-          <Link
-            href="/register"
-            className="group inline-flex items-center gap-2 rounded-full bg-sunrise-coral px-7 py-4 text-[15px] font-bold text-white transition-transform hover:-translate-y-0.5"
-          >
-            Join as a viewer
-            <ArrowUpRight className="h-4 w-4 transition-transform group-hover:rotate-45" />
-          </Link>
-          <Link
-            href="/sign-up"
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-7 py-4 text-[15px] font-bold text-foreground transition-transform hover:-translate-y-0.5"
-          >
-            I’m a creator
-          </Link>
-        </div>
-
-        <div className="relative mt-16">
-          <Sticker className="-left-2 top-4 hidden rotate-[-8deg] sm:block" tone="coral" label="Games + watch" />
-          <Sticker className="right-0 top-0 hidden rotate-[7deg] md:block" tone="blue" label="Daily boards" />
-          <Sticker className="bottom-6 left-1/2 hidden -translate-x-1/2 rotate-[3deg] lg:block" tone="mint" label="Server-confirmed" />
-
-          <div className="mx-auto max-w-[980px] overflow-hidden rounded-[28px] border border-border bg-card p-3 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.45)]">
-            <div className="rounded-[20px] border border-border bg-background p-6 sm:p-10">
-              <div className="grid gap-6 sm:grid-cols-3">
-                <Metric value="128" label="Confirmed sessions" note="this month" />
-                <Metric value="7" label="Catalog games" note="beside the video" accent />
-                <Metric value="0" label="Fake impressions" note="by design" />
-              </div>
-              <div className="mt-8 h-[120px] w-full">
-                <svg viewBox="0 0 600 120" className="h-full w-full" aria-hidden>
-                  <path
-                    d="M0 92 C60 78, 110 34, 170 46 S280 104, 340 72 S470 20, 600 40"
-                    fill="none"
-                    stroke="#fc5f2b"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M0 104 C60 98, 110 84, 170 90 S280 110, 340 100 S470 76, 600 86"
-                    fill="none"
-                    stroke="#3B82F6"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    opacity="0.55"
-                  />
-                </svg>
-              </div>
+            <div className="relative mt-10 h-12 w-full max-w-[280px]">
+              <motion.div
+                style={{ opacity: ctaOutlineOpacity, pointerEvents: ctaOutlineEvents }}
+                className="absolute inset-0 flex items-center justify-center"
+              >
+                <Link
+                  href="/get-started"
+                  className="inline-flex whitespace-nowrap border border-white/35 px-7 py-3 text-[13px] font-medium tracking-[-0.01em] text-white"
+                >
+                  Get started for free
+                </Link>
+              </motion.div>
+              <motion.div
+                style={{ opacity: ctaSolidOpacity, pointerEvents: ctaSolidEvents }}
+                className="absolute inset-0 flex items-center justify-center"
+              >
+                <Link
+                  href="/get-started"
+                  className="inline-flex items-center gap-3 whitespace-nowrap bg-[#141414] py-2.5 pr-5 pl-2.5 text-[13px] font-medium text-white"
+                >
+                  <span className="flex h-7 w-7 items-center justify-center bg-[#fc5f2b] text-[16px] leading-none text-white">
+                    ›
+                  </span>
+                  Get started for free
+                </Link>
+              </motion.div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
-    </section>
+    </div>
   );
 };
 
-function Sticker({
-  label,
-  tone,
-  className = "",
-}: {
-  label: string;
-  tone: "coral" | "blue" | "mint";
-  className?: string;
-}) {
-  const tones = {
-    coral: "bg-sunrise-coral text-white",
-    blue: "bg-[#3B82F6] text-white",
-    mint: "bg-[#10B981] text-white",
-  } as const;
-
+function HeroCopy() {
   return (
-    <span
-      className={`animate-float-slow absolute z-10 rounded-2xl px-4 py-2 text-[12px] font-bold shadow-lg ${tones[tone]} ${className}`}
-    >
-      {label}
-    </span>
-  );
-}
-
-function Metric({
-  value,
-  label,
-  note,
-  accent,
-}: {
-  value: string;
-  label: string;
-  note: string;
-  accent?: boolean;
-}) {
-  return (
-    <div>
-      <p
-        className={`text-[30px] font-semibold tracking-[-0.03em] ${
-          accent ? "text-sunrise-coral" : "text-foreground"
-        }`}
-      >
-        {value}
+    <div className="relative z-10 mx-auto flex min-h-svh max-w-[900px] flex-col items-center justify-center px-6 pb-20 pt-28 text-center">
+      <p className="text-[12px] font-medium tracking-[0.2em] text-white/60 uppercase">Fanaye</p>
+      <h1 className="mt-6 text-[clamp(2.5rem,7vw,4.5rem)] font-medium leading-[1.05] tracking-[-0.04em] text-white">
+        The browser that turns watching into real engagement
+      </h1>
+      <p className="mt-6 max-w-[480px] text-[16px] leading-[1.55] text-white/70">
+        Creators register channels. Viewers watch in Fanaye and play mini-games beside the video.
+        Daily leaderboards — no spoofed views.
       </p>
-      <p className="mt-1 text-[13px] font-medium text-foreground">{label}</p>
-      <p className="text-[12px] text-muted-foreground">{note}</p>
+      <Link
+        href="/get-started"
+        className="mt-10 inline-flex border border-white/30 px-7 py-3 text-[13px] font-medium text-white"
+      >
+        Get started for free
+      </Link>
     </div>
   );
 }
