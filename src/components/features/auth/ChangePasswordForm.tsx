@@ -18,7 +18,7 @@ import { hasAuthToken } from "@/lib/auth-token";
 import { isPasswordAcceptable } from "@/lib/password-strength";
 
 const fieldClass =
-  "h-11 rounded-[15px] border-border bg-card px-4 text-[15px] shadow-none";
+  "h-11 rounded-[15px] border-border bg-card px-4 text-[15px] text-foreground placeholder:text-muted-foreground shadow-none";
 
 export default function ChangePasswordForm() {
   const router = useRouter();
@@ -107,7 +107,7 @@ export default function ChangePasswordForm() {
         <div className="space-y-2">
           <Label
             htmlFor="old-password"
-            className="text-onboarding-label text-carbon-black"
+            className="text-onboarding-label text-foreground"
           >
             Current password
           </Label>
@@ -129,7 +129,7 @@ export default function ChangePasswordForm() {
           disabled={isLoading}
         />
         {error ? (
-          <p className="rounded-[15px] border border-mist-gray bg-fog-gray px-4 py-3 text-[13px]">
+          <p className="rounded-[15px] border border-destructive/30 bg-destructive/10 px-4 py-3 text-[13px] text-destructive dark:text-red-400">
             {error}
           </p>
         ) : null}

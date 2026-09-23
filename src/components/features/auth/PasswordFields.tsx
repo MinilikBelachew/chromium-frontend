@@ -11,7 +11,7 @@ import {
 } from "@/lib/password-strength";
 
 const fieldClass =
-  "h-11 rounded-[15px] border-border bg-card px-4 text-[15px] shadow-none";
+  "h-11 rounded-[15px] border-border bg-card px-4 text-[15px] text-foreground placeholder:text-muted-foreground shadow-none";
 
 const barTone: Record<PasswordStrengthLevel, string> = {
   empty: "bg-muted",
@@ -83,7 +83,7 @@ export default function PasswordFields({
   return (
     <div className="space-y-5">
       <div className="relative space-y-2">
-        <Label htmlFor="password" className="text-onboarding-label text-carbon-black">
+        <Label htmlFor="password" className="text-onboarding-label text-foreground">
           Password
         </Label>
         <Input
@@ -156,7 +156,7 @@ export default function PasswordFields({
       <div className="space-y-2">
         <Label
           htmlFor="confirm-password"
-          className="text-onboarding-label text-carbon-black"
+          className="text-onboarding-label text-foreground"
         >
           Confirm password
         </Label>
@@ -174,7 +174,7 @@ export default function PasswordFields({
         {confirmTouched ? (
           <p
             className={`text-[12px] font-medium ${
-              passwordsMatch ? "text-emerald-600" : "text-red-500"
+              passwordsMatch ? "text-emerald-500" : "text-red-500 dark:text-red-400"
             }`}
           >
             {passwordsMatch ? "Passwords match" : "Passwords do not match"}

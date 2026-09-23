@@ -6,6 +6,7 @@ import {
   Clapperboard,
   ExternalLink,
   Home,
+  KeyRound,
   LogOut,
   Plus,
   Search,
@@ -22,8 +23,10 @@ import { useGetOnboardingMeQuery } from "@/context/services/authApi";
 import {
   useCreateCreatorMutation,
   useGetAdminOverviewQuery,
+  useGetVpnResellerKeyQuery,
   useListCreatorsQuery,
   useListUsersByRoleQuery,
+  usePutVpnResellerKeyMutation,
   useUpdateChannelVerificationMutation,
   type AdminCreatorRow,
 } from "@/context/services/adminApi";
@@ -50,7 +53,7 @@ import {
 } from "@/components/features/admin/AdminOverviewCharts";
 import AdminAllGamesLeaderboard from "@/components/features/admin/AdminAllGamesLeaderboard";
 
-type TabId = "overview" | "creators" | "viewers";
+type TabId = "overview" | "creators" | "viewers" | "vpn";
 
 const LINE = "border border-border";
 const CARD = `rounded-2xl bg-card ${LINE} p-5`;
@@ -285,6 +288,13 @@ export default function AdminDashboard() {
           >
             <Users className="h-5 w-5" strokeWidth={1.75} />
           </RailButton>
+          <RailButton
+            active={tab === "vpn"}
+            label="VPN"
+            onClick={() => setTab("vpn")}
+          >
+            <KeyRound className="h-5 w-5" strokeWidth={1.75} />
+          </RailButton>
         </div>
         <ThemeToggle />
         <button
@@ -307,17 +317,19 @@ export default function AdminDashboard() {
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-6 py-5 sm:px-8">
+        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-6 py-4 sm:px-8">
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-gray">
+            <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
               Super admin
             </p>
-            <h1 className="text-onboarding-title mt-1 text-[28px] sm:text-[32px]">
+            <h1 className="mt-0.5 text-[22px] font-semibold tracking-[-0.03em] sm:text-[24px]">
               {tab === "overview"
                 ? "Overview"
                 : tab === "creators"
                   ? "Creators"
-                  : "Viewers"}
+                  : tab === "vpn"
+                    ? "VPN"
+                    : "Viewers"}
             </h1>
           </div>
           <div className="flex items-center gap-3">
@@ -331,7 +343,7 @@ export default function AdminDashboard() {
                 {showCreate ? "Hide form" : "Create creator"}
               </Button>
             ) : null}
-            <span className="hidden items-center gap-2 rounded-full border border-mist-gray bg-fog-gray px-3 py-1.5 text-[13px] text-zinc-gray sm:inline-flex">
+            <span className="hidden items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-[13px] text-muted-foreground sm:inline-flex">
               <Shield className="size-3.5 text-sunrise-coral" />
               {adminName}
             </span>
@@ -347,6 +359,9 @@ export default function AdminDashboard() {
           </TabChip>
           <TabChip active={tab === "viewers"} onClick={() => setTab("viewers")}>
             Viewers
+          </TabChip>
+          <TabChip active={tab === "vpn"} onClick={() => setTab("vpn")}>
+            VPN
           </TabChip>
         </div>
 
@@ -377,6 +392,8 @@ export default function AdminDashboard() {
               hasMoreCreators={Boolean(creatorsQuery.data?.hasNextPage)}
               hasMoreViewers={Boolean(viewersQuery.data?.hasNextPage)}
             />
+          ) : tab === "vpn" ? (
+            <VpnResellerKeyPanel ready={adminReady} />
           ) : (
             <>
               {tab === "creators" && showCreate ? (
@@ -393,15 +410,15 @@ export default function AdminDashboard() {
               <div className={CARD}>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="relative w-full max-w-md">
-                    <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ash-gray" />
+                    <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                       placeholder={`Search ${tab}…`}
-                      className="h-11 rounded-full border-border bg-background pl-10 text-[15px] shadow-none"
+                      className="h-11 rounded-full border-border bg-background pl-10 text-[15px] text-foreground placeholder:text-muted-foreground shadow-none"
                     />
                   </div>
-                  <p className="text-[13px] tracking-[-0.02em] text-zinc-gray">
+                  <p className="text-[13px] tracking-[-0.02em] text-muted-foreground">
                     {isFetching
                       ? "Loading…"
                       : `${shownCount} shown${hasNextPage ? " · more pages available" : ""}`}
@@ -410,7 +427,7 @@ export default function AdminDashboard() {
               </div>
 
               {isError ? (
-                <div className={`${CARD} text-[15px] text-carbon-black`}>
+                <div className={`${CARD} text-[15px] text-foreground`}>
                   Could not load {tab}.{" "}
                   <button
                     type="button"
@@ -443,6 +460,101 @@ export default function AdminDashboard() {
           )}
         </main>
       </div>
+    </div>
+  );
+}
+
+function VpnResellerKeyPanel({ ready }: { ready: boolean }) {
+  const [apiToken, setApiToken] = useState("");
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
+  const statusQuery = useGetVpnResellerKeyQuery(undefined, { skip: !ready });
+  const [putKey, putState] = usePutVpnResellerKeyMutation();
+
+  const status = statusQuery.data;
+  const errorMsg = putState.isError
+    ? parseApiError(putState.error)
+    : statusQuery.isError
+      ? "Could not load VPN key status."
+      : null;
+
+  async function onSave(e: React.FormEvent) {
+    e.preventDefault();
+    setSavedMsg(null);
+    const trimmed = apiToken.trim();
+    if (!trimmed) return;
+    try {
+      await putKey({ apiToken: trimmed }).unwrap();
+      setApiToken("");
+      setSavedMsg("VPN reseller key saved.");
+    } catch {
+      /* error shown via putState */
+    }
+  }
+
+  return (
+    <div className={`${CARD} max-w-xl space-y-5`}>
+      <div>
+        <h2 className="text-[17px] font-semibold tracking-[-0.02em]">
+          VPNresellers API key
+        </h2>
+        <p className="mt-1 text-[14px] text-muted-foreground">
+          Stored in the backend. The desktop browser fetches it without login.
+        </p>
+      </div>
+
+      {statusQuery.isFetching && !status ? (
+        <p className="text-[14px] text-muted-foreground">Loading…</p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3 text-[14px]">
+          <Badge
+            label={status?.configured ? "Configured" : "Missing"}
+            tone={status?.configured ? "green" : "coral"}
+          />
+          {status?.maskedToken ? (
+            <span className="font-mono text-muted-foreground">
+              {status.maskedToken}
+            </span>
+          ) : null}
+          {status?.updatedAt ? (
+            <span className="text-muted-foreground">
+              Updated {formatDate(status.updatedAt)}
+            </span>
+          ) : null}
+        </div>
+      )}
+
+      <form onSubmit={(e) => void onSave(e)} className="space-y-4">
+        <Field label="API token" htmlFor="vpn-reseller-token">
+          <Input
+            id="vpn-reseller-token"
+            type="password"
+            autoComplete="off"
+            value={apiToken}
+            onChange={(e) => setApiToken(e.target.value)}
+            placeholder={
+              status?.configured
+                ? "Enter a new token to replace"
+                : "Paste VPNresellers API token"
+            }
+            className="h-11 border-border bg-background font-mono text-[14px] shadow-none"
+          />
+        </Field>
+        {errorMsg ? (
+          <p className="text-[13px] text-red-600 dark:text-red-400">{errorMsg}</p>
+        ) : null}
+        {savedMsg ? (
+          <p className="text-[13px] text-emerald-700 dark:text-emerald-400">
+            {savedMsg}
+          </p>
+        ) : null}
+        <Button
+          type="submit"
+          size="sm"
+          disabled={!apiToken.trim() || putState.isLoading}
+        >
+          {putState.isLoading ? "Saving…" : "Save key"}
+        </Button>
+      </form>
     </div>
   );
 }
@@ -495,7 +607,7 @@ function OverviewPanel({
 }) {
   if (error) {
     return (
-      <div className={`${CARD} text-[15px] text-carbon-black`}>
+      <div className={`${CARD} text-[15px] text-foreground`}>
         Could not load overview.{" "}
         <button type="button" className="underline underline-offset-4" onClick={onRetry}>
           Retry
@@ -769,10 +881,10 @@ function CreateCreatorPanel({
   return (
     <section className={`${CARD} space-y-5`}>
       <div>
-        <h2 className="text-[22px] font-medium tracking-[-0.03em] text-carbon-black">
+        <h2 className="text-[22px] font-medium tracking-[-0.03em] text-foreground">
           Create creator account
         </h2>
-        <p className="mt-1 text-[14px] tracking-[-0.02em] text-zinc-gray">
+        <p className="mt-1 text-[14px] tracking-[-0.02em] text-muted-foreground">
           Provision a creator from outside the public signup flow. They can sign
           in with this email and password.
         </p>
@@ -884,14 +996,14 @@ function CreatorsTable({
     <div className={`overflow-hidden rounded-2xl bg-card ${LINE}`}>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1100px] text-left text-[14px]">
-          <thead className="border-b border-border bg-fog-gray/70 text-[11px] font-medium uppercase tracking-[0.08em] text-zinc-gray">
+          <thead className="border-b border-border bg-muted/50 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
             <tr>
-              <th className="px-5 py-3.5 font-medium">Creator</th>
-              <th className="px-5 py-3.5 font-medium">Contact</th>
-              <th className="px-5 py-3.5 font-medium">Plan</th>
-              <th className="px-5 py-3.5 font-medium">Creator status</th>
-              <th className="px-5 py-3.5 font-medium">Channels</th>
-              <th className="px-5 py-3.5 font-medium">Joined</th>
+              <th className="px-5 py-3 font-medium">Creator</th>
+              <th className="px-5 py-3 font-medium">Contact</th>
+              <th className="px-5 py-3 font-medium">Plan</th>
+              <th className="px-5 py-3 font-medium">Creator status</th>
+              <th className="px-5 py-3 font-medium">Channels</th>
+              <th className="px-5 py-3 font-medium">Joined</th>
             </tr>
           </thead>
           <tbody>
@@ -899,7 +1011,7 @@ function CreatorsTable({
               <tr>
                 <td
                   colSpan={6}
-                  className="px-5 py-12 text-center text-[15px] text-zinc-gray"
+                  className="px-5 py-12 text-center text-[15px] text-muted-foreground"
                 >
                   No creators found.
                 </td>
@@ -910,7 +1022,7 @@ function CreatorsTable({
               return (
                 <tr
                   key={row.id}
-                  className="border-b border-border align-top last:border-0 hover:bg-fog-gray/40"
+                  className="border-b border-border align-top last:border-0 hover:bg-muted/40"
                 >
                   <td className="px-5 py-4">
                     <Link
@@ -924,18 +1036,18 @@ function CreatorsTable({
                         className="size-9 shrink-0 rounded-full bg-muted object-cover"
                       />
                       <div>
-                        <p className="font-medium tracking-[-0.02em] text-carbon-black underline-offset-4 group-hover:underline hover:underline">
+                        <p className="font-medium tracking-[-0.02em] text-foreground underline-offset-4 group-hover:underline hover:underline">
                           {name}
                         </p>
-                        <p className="mt-0.5 text-[12px] text-zinc-gray">
+                        <p className="mt-0.5 text-[12px] text-muted-foreground">
                           Creator #{row.id} · User #{row.user.id}
                         </p>
                       </div>
                     </Link>
                   </td>
                   <td className="px-5 py-4">
-                    <p className="text-zinc-gray">{row.user.email ?? "—"}</p>
-                    <p className="mt-0.5 text-[12px] text-ash-gray">
+                    <p className="text-foreground">{row.user.email ?? "—"}</p>
+                    <p className="mt-0.5 text-[12px] text-muted-foreground">
                       {row.user.phone ?? "No phone"}
                     </p>
                   </td>
@@ -945,7 +1057,7 @@ function CreatorsTable({
                       label={row.plan}
                     />
                     {row.planStartedAt ? (
-                      <p className="mt-1 text-[12px] text-ash-gray">
+                      <p className="mt-1 text-[12px] text-muted-foreground">
                         since {formatDate(row.planStartedAt)}
                       </p>
                     ) : null}
@@ -955,13 +1067,13 @@ function CreatorsTable({
                       tone={row.status === "active" ? "green" : "muted"}
                       label={row.status}
                     />
-                    <p className="mt-1 text-[12px] text-ash-gray">
+                    <p className="mt-1 text-[12px] text-muted-foreground">
                       Account: {row.user.status?.name ?? "—"}
                     </p>
                   </td>
                   <td className="px-5 py-4">
                     {row.channels.length === 0 ? (
-                      <span className="text-zinc-gray">No channels</span>
+                      <span className="text-muted-foreground">No channels</span>
                     ) : (
                       <ul className="space-y-3">
                         {row.channels.map((ch) => (
@@ -972,7 +1084,7 @@ function CreatorsTable({
                       </ul>
                     )}
                   </td>
-                  <td className="px-5 py-4 text-zinc-gray">
+                  <td className="px-5 py-4 text-muted-foreground">
                     {formatDate(row.createdAt)}
                   </td>
                 </tr>
@@ -1013,7 +1125,7 @@ function ChannelAdminRow({
   return (
     <div>
       <div className="flex items-center gap-1.5">
-        <span className="truncate font-medium text-carbon-black">
+        <span className="truncate font-medium text-foreground">
           {formatAmharicChannelName(channel.channelName)}
         </span>
         <a
@@ -1026,7 +1138,7 @@ function ChannelAdminRow({
           <ExternalLink className="size-3.5" />
         </a>
       </div>
-      <p className="truncate text-[12px] text-ash-gray">
+      <p className="truncate text-[12px] text-muted-foreground">
         {formatAmharicChannelHandle(
           channel.youtubeChannelId,
           channel.channelName,
@@ -1069,7 +1181,7 @@ function ChannelAdminRow({
             type="button"
             disabled={isLoading}
             onClick={() => void setStatus("PENDING")}
-            className="rounded-full bg-fog-gray px-2.5 py-1 text-[11px] font-medium text-zinc-gray hover:bg-mist-gray disabled:opacity-50"
+            className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground disabled:opacity-50"
           >
             Reset
           </button>
@@ -1099,13 +1211,13 @@ function ViewersTable({
     <div className={`overflow-hidden rounded-2xl bg-card ${LINE}`}>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-left text-[14px]">
-          <thead className="border-b border-border bg-fog-gray/70 text-[11px] font-medium uppercase tracking-[0.08em] text-zinc-gray">
+          <thead className="border-b border-border bg-muted/50 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
             <tr>
-              <th className="px-5 py-3.5 font-medium">Name</th>
-              <th className="px-5 py-3.5 font-medium">Email</th>
-              <th className="px-5 py-3.5 font-medium">Phone</th>
-              <th className="px-5 py-3.5 font-medium">Status</th>
-              <th className="px-5 py-3.5 font-medium">Joined</th>
+              <th className="px-5 py-3 font-medium">Name</th>
+              <th className="px-5 py-3 font-medium">Email</th>
+              <th className="px-5 py-3 font-medium">Phone</th>
+              <th className="px-5 py-3 font-medium">Status</th>
+              <th className="px-5 py-3 font-medium">Joined</th>
             </tr>
           </thead>
           <tbody>
@@ -1113,7 +1225,7 @@ function ViewersTable({
               <tr>
                 <td
                   colSpan={5}
-                  className="px-5 py-12 text-center text-[15px] text-zinc-gray"
+                  className="px-5 py-12 text-center text-[15px] text-muted-foreground"
                 >
                   No viewers found.
                 </td>
@@ -1127,7 +1239,7 @@ function ViewersTable({
               return (
                 <tr
                   key={String(user.id)}
-                  className="border-b border-border last:border-0 hover:bg-fog-gray/40"
+                  className="border-b border-border last:border-0 hover:bg-muted/40"
                 >
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
@@ -1138,15 +1250,15 @@ function ViewersTable({
                         height={36}
                         className="size-9 shrink-0 rounded-[10px] bg-muted object-cover"
                       />
-                      <span className="font-medium tracking-[-0.02em] text-carbon-black">
+                      <span className="font-medium tracking-[-0.02em] text-foreground">
                         {name}
                       </span>
                     </div>
                   </td>
-                  <td className="px-5 py-4 text-zinc-gray">
+                  <td className="px-5 py-4 text-muted-foreground">
                     {user.email ?? "—"}
                   </td>
-                  <td className="px-5 py-4 text-zinc-gray">
+                  <td className="px-5 py-4 text-muted-foreground">
                     {user.phone ?? "—"}
                   </td>
                   <td className="px-5 py-4">
@@ -1155,7 +1267,7 @@ function ViewersTable({
                       label={user.status?.name ?? "—"}
                     />
                   </td>
-                  <td className="px-5 py-4 text-zinc-gray">
+                  <td className="px-5 py-4 text-muted-foreground">
                     {formatDate(user.createdAt)}
                   </td>
                 </tr>
@@ -1224,7 +1336,7 @@ function Field({
 }) {
   return (
     <div className="space-y-2">
-      <Label htmlFor={htmlFor} className="text-onboarding-label text-carbon-black">
+      <Label htmlFor={htmlFor} className="text-onboarding-label text-foreground">
         {label}
       </Label>
       {children}
@@ -1242,7 +1354,7 @@ function Badge({
   const styles = {
     green: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
     coral: "bg-sunrise-coral/15 text-sunrise-coral",
-    muted: "bg-fog-gray text-zinc-gray",
+    muted: "bg-muted text-muted-foreground",
     red: "bg-red-500/10 text-red-600 dark:text-red-400",
   }[tone];
 

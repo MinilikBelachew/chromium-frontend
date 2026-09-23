@@ -191,11 +191,11 @@ export default function UserDashboard() {
                 <img
                   src={notionistsAvatar(avatarSeed, 64)}
                   alt=""
-                  className="h-8 w-8 rounded-full bg-[#FFF1E9]"
+                  className="h-8 w-8 rounded-full bg-sunrise-coral/15"
                   onError={() => setAvatarFailed(true)}
                 />
               ) : (
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FFF1E9] text-[11px] font-bold text-sunrise-coral">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-sunrise-coral/15 text-[11px] font-bold text-sunrise-coral">
                   {initials}
                 </span>
               )}
@@ -259,7 +259,7 @@ function RailButton({
       onClick={onClick}
       className={`flex h-10 w-10 items-center justify-center rounded-xl transition-colors ${
         active
-          ? "bg-[#FFF1E9] text-sunrise-coral"
+          ? "bg-sunrise-coral/15 text-sunrise-coral"
           : "text-muted-foreground hover:bg-muted hover:text-foreground"
       }`}
     >
@@ -310,11 +310,11 @@ function Overview({
               <img
                 src={avatarUrl}
                 alt=""
-                className="h-20 w-20 rounded-2xl border-4 border-card bg-[#FFF1E9]"
+                className="h-20 w-20 rounded-2xl border-4 border-card bg-sunrise-coral/15"
                 onError={() => setAvatarFailed(true)}
               />
             ) : (
-              <span className="flex h-20 w-20 items-center justify-center rounded-2xl border-4 border-card bg-[#FFF1E9] text-[22px] font-bold text-sunrise-coral">
+              <span className="flex h-20 w-20 items-center justify-center rounded-2xl border-4 border-card bg-sunrise-coral/15 text-[22px] font-bold text-sunrise-coral">
                 {initials}
               </span>
             )}
@@ -467,10 +467,10 @@ function LeaderboardsPanel() {
               key={game.slug}
               type="button"
               onClick={() => setSlug(game.slug)}
-              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-medium ${LINE} ${
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors ${
                 slug === game.slug
-                  ? "bg-[#FFF1E9] text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "border border-sunrise-coral bg-sunrise-coral text-white shadow-xs"
+                  : `border border-border text-muted-foreground hover:border-border/80 hover:text-foreground`
               }`}
             >
               <img

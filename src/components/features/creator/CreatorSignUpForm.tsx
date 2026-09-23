@@ -23,7 +23,7 @@ import { gameLogoUrl } from "@/lib/game-logos";
 import { useChannelAvailability } from "@/hooks/useChannelAvailability";
 
 const fieldClass =
-  "h-11 rounded-[15px] border-border bg-card px-4 text-[15px] shadow-none";
+  "h-11 rounded-[15px] border-border bg-card px-4 text-[15px] text-foreground placeholder:text-muted-foreground shadow-none";
 
 const STEPS = [
   { id: "account", label: "Account", description: "Name, email, password" },
@@ -209,7 +209,7 @@ export default function CreatorSignUpForm() {
           <div className="space-y-5">
             <form onSubmit={goNext} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="name" className="text-onboarding-label text-carbon-black">
+                <Label htmlFor="name" className="text-onboarding-label text-foreground">
                   Full name
                 </Label>
                 <Input
@@ -223,7 +223,7 @@ export default function CreatorSignUpForm() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-onboarding-label text-carbon-black">
+                <Label htmlFor="email" className="text-onboarding-label text-foreground">
                   Email
                 </Label>
                 <Input
@@ -324,7 +324,7 @@ export default function CreatorSignUpForm() {
         >
           <form onSubmit={goNext} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="channel" className="text-onboarding-label text-carbon-black">
+              <Label htmlFor="channel" className="text-onboarding-label text-foreground">
                 YouTube channel link
               </Label>
               <Input
@@ -349,17 +349,17 @@ export default function CreatorSignUpForm() {
                 <p
                   className={`text-caption ${
                     channelStatus === "taken" || channelStatus === "invalid"
-                      ? "text-red-600"
+                      ? "text-red-600 dark:text-red-400"
                       : channelStatus === "available"
-                        ? "text-emerald-700"
-                        : "text-zinc-gray"
+                        ? "text-emerald-700 dark:text-emerald-400"
+                        : "text-muted-foreground"
                   }`}
                 >
                   {channelHint ??
                     "Use a youtube.com or youtu.be channel URL."}
                 </p>
               ) : (
-                <p className="text-caption text-zinc-gray">
+                <p className="text-caption text-muted-foreground">
                   Use a youtube.com or youtu.be channel URL.
                 </p>
               )}
@@ -413,8 +413,8 @@ export default function CreatorSignUpForm() {
                       }}
                       className={`flex items-center gap-3 rounded-[15px] border px-4 py-3 text-left transition-colors ${
                         active
-                          ? "border-sunrise-coral/40 bg-[#FFF1E9] text-carbon-black"
-                          : "border-mist-gray bg-card text-zinc-gray hover:text-carbon-black"
+                          ? "border-sunrise-coral/50 bg-sunrise-coral/15 text-foreground"
+                          : "border-border bg-card text-muted-foreground hover:border-border/80 hover:text-foreground"
                       }`}
                     >
                       <img
@@ -461,7 +461,7 @@ export default function CreatorSignUpForm() {
           title="Review & confirm"
           subtitle="Create your creator account. Your channel starts as pending verification."
         >
-          <div className="space-y-4 rounded-[15px] border border-mist-gray bg-fog-gray/60 p-4">
+          <div className="space-y-4 rounded-[15px] border border-border bg-card p-4">
             <ReviewRow label="Name" value={name.trim()} />
             <ReviewRow label="Email" value={email.trim().toLowerCase()} />
             <ReviewRow label="Email status" value="Verified" />
@@ -520,17 +520,17 @@ export default function CreatorSignUpForm() {
 function ReviewRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-      <span className="text-[12px] font-bold uppercase tracking-[0.06em] text-zinc-gray">
+      <span className="text-[12px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
         {label}
       </span>
-      <span className="truncate text-[15px] text-carbon-black">{value}</span>
+      <span className="truncate text-[15px] font-medium text-foreground">{value}</span>
     </div>
   );
 }
 
 function ErrorBox({ message }: { message: string }) {
   return (
-    <p className="rounded-[15px] border border-mist-gray bg-fog-gray px-4 py-3 text-[13px] text-carbon-black">
+    <p className="rounded-[15px] border border-destructive/30 bg-destructive/10 px-4 py-3 text-[13px] text-destructive dark:text-red-400">
       {message}
     </p>
   );

@@ -80,7 +80,7 @@ export default function UserLoginForm() {
           New here?{" "}
           <Link
             href="/get-started"
-            className="text-carbon-black underline-offset-4 hover:underline"
+            className="font-medium text-sky-blue underline-offset-4 hover:underline"
           >
             Get started
           </Link>
@@ -95,7 +95,7 @@ export default function UserLoginForm() {
         />
         <form onSubmit={onSubmit} className="space-y-5" aria-busy={busy}>
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-onboarding-label text-carbon-black">
+            <Label htmlFor="email" className="text-onboarding-label text-foreground">
               Email
             </Label>
             <Input
@@ -103,7 +103,7 @@ export default function UserLoginForm() {
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="h-11 rounded-[15px] border-mist-gray px-4 text-[15px] shadow-none"
+              className="h-11 rounded-[15px] border-border bg-card px-4 text-[15px] text-foreground placeholder:text-muted-foreground shadow-none"
               autoComplete="email"
               required
               disabled={busy}
@@ -113,7 +113,7 @@ export default function UserLoginForm() {
             <div className="flex items-center justify-between gap-3">
               <Label
                 htmlFor="password"
-                className="text-onboarding-label text-carbon-black"
+                className="text-onboarding-label text-foreground"
               >
                 Password
               </Label>
@@ -129,14 +129,14 @@ export default function UserLoginForm() {
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="h-11 rounded-[15px] border-mist-gray px-4 text-[15px] shadow-none"
+              className="h-11 rounded-[15px] border-border bg-card px-4 text-[15px] text-foreground placeholder:text-muted-foreground shadow-none"
               autoComplete="current-password"
               required
               disabled={busy}
             />
           </div>
           {error ? (
-            <p className="rounded-[15px] border border-mist-gray bg-fog-gray px-4 py-3 text-[13px]">
+            <p className="rounded-[15px] border border-destructive/30 bg-destructive/10 px-4 py-3 text-[13px] text-destructive dark:text-red-400">
               {error}
             </p>
           ) : null}

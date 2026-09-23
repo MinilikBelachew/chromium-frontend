@@ -222,6 +222,34 @@ export const adminApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Onboarding", "Auth"],
     }),
+
+    getVpnResellerKey: build.query<
+      {
+        configured: boolean;
+        maskedToken: string | null;
+        updatedAt: string | null;
+      },
+      void
+    >({
+      query: () => "/admin/vpn-reseller-key",
+      providesTags: ["VpnResellerKey"],
+    }),
+
+    putVpnResellerKey: build.mutation<
+      {
+        configured: boolean;
+        maskedToken: string | null;
+        updatedAt: string | null;
+      },
+      { apiToken: string }
+    >({
+      query: (body) => ({
+        url: "/admin/vpn-reseller-key",
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: ["VpnResellerKey"],
+    }),
   }),
 });
 
@@ -233,4 +261,6 @@ export const {
   useGetAdminCreatorDetailQuery,
   useCreateCreatorMutation,
   useUpdateChannelVerificationMutation,
+  useGetVpnResellerKeyQuery,
+  usePutVpnResellerKeyMutation,
 } = adminApi;

@@ -12,12 +12,12 @@ const buttonVariants = cva(
         default:
           "rounded-full bg-sunrise-coral px-8 py-[15px] text-[15px] font-bold tracking-[-0.009em] text-paper-white hover:bg-[#e85424]",
         secondary:
-          "rounded-full bg-carbon-black px-8 py-[15px] text-[15px] font-bold tracking-[-0.009em] text-paper-white hover:bg-pure-black",
+          "rounded-full bg-secondary text-secondary-foreground px-8 py-[15px] text-[15px] font-bold tracking-[-0.009em] hover:bg-secondary/80",
         outline:
           "rounded-full border border-border bg-card px-8 py-[15px] text-[15px] font-bold tracking-[-0.009em] text-foreground hover:bg-muted",
         ghost:
-          "rounded-full px-3 py-2 text-[15px] font-normal tracking-[-0.005em] text-carbon-black underline-offset-4 hover:underline",
-        link: "text-[15px] font-normal text-carbon-black underline-offset-4 hover:underline",
+          "rounded-full px-3 py-2 text-[15px] font-normal tracking-[-0.005em] text-foreground underline-offset-4 hover:underline hover:text-foreground/80",
+        link: "text-[15px] font-normal text-foreground underline-offset-4 hover:underline hover:text-foreground/80",
         nav: "rounded-full bg-sunrise-coral px-5 py-2.5 text-[13px] font-bold tracking-[-0.005em] text-paper-white hover:bg-[#e85424]",
         destructive:
           "rounded-full bg-destructive px-8 py-[15px] text-[15px] font-bold text-white hover:opacity-90",

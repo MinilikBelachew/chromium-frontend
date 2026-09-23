@@ -44,10 +44,10 @@ export default function AdminAllGamesLeaderboard() {
               key={game.slug}
               type="button"
               onClick={() => setSlug(game.slug)}
-              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-medium ${LINE} ${
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors ${
                 slug === game.slug
-                  ? "bg-[#FFF1E9] text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "border border-sunrise-coral bg-sunrise-coral text-white shadow-xs"
+                  : `border border-border text-muted-foreground hover:border-border/80 hover:text-foreground`
               }`}
             >
               <img

@@ -130,10 +130,10 @@ function Badge({
     tone === "green"
       ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
       : tone === "coral"
-        ? "bg-[#FFF1E9] text-sunrise-coral"
+        ? "bg-sunrise-coral/15 text-sunrise-coral"
         : tone === "red"
           ? "bg-red-500/10 text-red-600 dark:text-red-400"
-          : "bg-fog-gray text-zinc-gray";
+          : "bg-muted text-muted-foreground";
   return (
     <span
       className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.04em] ${styles}`}
@@ -229,7 +229,7 @@ function ChannelActions({ channel }: { channel: AdminCreatorChannel }) {
             type="button"
             disabled={isLoading}
             onClick={() => void setStatus("PENDING")}
-            className="rounded-full bg-fog-gray px-2.5 py-1 text-[11px] font-medium text-zinc-gray hover:bg-mist-gray disabled:opacity-50"
+            className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground disabled:opacity-50"
           >
             Reset
           </button>

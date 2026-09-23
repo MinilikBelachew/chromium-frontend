@@ -68,7 +68,11 @@ export default function GetStartedChoice() {
                         : "bg-sky-blue/12 text-sky-blue"
                     }`}
                   >
-            
+                    {isCoral ? (
+                      <Eye className="h-5 w-5" />
+                    ) : (
+                      <Radio className="h-5 w-5" />
+                    )}
                   </span>
                   <h2 className="mt-5 text-[22px] font-semibold tracking-[-0.03em] text-foreground">
                     {option.title}

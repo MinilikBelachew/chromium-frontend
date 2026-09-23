@@ -24,7 +24,7 @@ import { isPasswordAcceptable } from "@/lib/password-strength";
 import { normalizePhone } from "@/lib/user-session";
 
 const fieldClass =
-  "h-11 rounded-[15px] border-border bg-card px-4 text-[15px] shadow-none";
+  "h-11 rounded-[15px] border-border bg-card px-4 text-[15px] text-foreground placeholder:text-muted-foreground shadow-none";
 
 const STEPS = [
   { id: "account", label: "Account", description: "Name, email, password" },
@@ -210,7 +210,7 @@ export default function UserRegisterForm() {
             />
             <form onSubmit={goNext} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="name" className="text-onboarding-label text-carbon-black">
+                <Label htmlFor="name" className="text-onboarding-label text-foreground">
                   Full name
                 </Label>
                 <Input
@@ -224,7 +224,7 @@ export default function UserRegisterForm() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-onboarding-label text-carbon-black">
+                <Label htmlFor="email" className="text-onboarding-label text-foreground">
                   Email
                 </Label>
                 <Input
@@ -325,7 +325,7 @@ export default function UserRegisterForm() {
         >
           <form onSubmit={goNext} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="phone" className="text-onboarding-label text-carbon-black">
+              <Label htmlFor="phone" className="text-onboarding-label text-foreground">
                 Phone
               </Label>
               <Input
@@ -368,7 +368,7 @@ export default function UserRegisterForm() {
           title="Review & confirm"
           subtitle="We’ll create your account so you can watch and play."
         >
-          <div className="space-y-4 rounded-[15px] border border-mist-gray bg-fog-gray/60 p-4">
+          <div className="space-y-4 rounded-[15px] border border-border bg-card p-4">
             <ReviewRow label="Name" value={name.trim()} />
             <ReviewRow label="Email" value={email.trim().toLowerCase()} />
             <ReviewRow label="Phone" value={normalizePhone(phone) ?? phone} />
@@ -412,17 +412,17 @@ export default function UserRegisterForm() {
 function ReviewRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-      <span className="text-[12px] font-bold uppercase tracking-[0.06em] text-zinc-gray">
+      <span className="text-[12px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
         {label}
       </span>
-      <span className="truncate text-[15px] text-carbon-black">{value}</span>
+      <span className="truncate text-[15px] font-medium text-foreground">{value}</span>
     </div>
   );
 }
 
 function ErrorBox({ message }: { message: string }) {
   return (
-    <p className="rounded-[15px] border border-mist-gray bg-fog-gray px-4 py-3 text-[13px] text-carbon-black">
+    <p className="rounded-[15px] border border-destructive/30 bg-destructive/10 px-4 py-3 text-[13px] text-destructive dark:text-red-400">
       {message}
     </p>
   );
