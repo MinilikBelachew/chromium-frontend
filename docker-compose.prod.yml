@@ -4,7 +4,7 @@ services:
     container_name: virwo-frontend
     restart: always
     ports:
-      - "${FRONTEND_PORT:-3090}:3000"
+      - "127.0.0.1:${FRONTEND_PORT:-3090}:3000"
     env_file:
       - .env
     environment:
